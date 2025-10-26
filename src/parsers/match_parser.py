@@ -4,16 +4,12 @@ Enhanced MTG Arena Log Parser
 Extracts game information including opponent cards when available
 """
 
-import sys
 import json
 import re
-import os
 from collections import defaultdict
 
-from src.cards_database.extract_card_database import CardDatabaseExtractor
 
-
-class MTGArenaMatchParser:
+class MatchParser:
     """Parser for MTG Arena game logs"""
 
     def __init__(self, log_path, match_id, card_db):
@@ -37,6 +33,42 @@ class MTGArenaMatchParser:
 
         # Build split card normalization map
         self.split_card_grp_map = self._build_split_card_map()
+
+    def parse(self):
+        """Main parsing method"""
+        print(f"📖 Parsing detailed logs for match: {self.match_id[:8]}...")
+
+        # Detect player seat
+        self._detect_player_seat()
+
+        # Parse log file
+        with open(self.log_path, 'r', encoding='utf-8', errors='ignore') as f:
+            in_match = False
+
+            for line in f:
+                if self.match_id in line:
+                    in_match = True
+
+                if not in_match:
+                    continue
+
+                # Check if different match started
+                if 'matchId' in line and self.match_id not in line:
+                    break
+
+                # Process each line
+                self._build_instance_mappings(line)
+                self._process_instance_id_changes(line)
+                self._extract_player_deck(line)
+                self._extract_opponent_deck_size(line)
+                self._extract_commanders(line)
+                self._extract_hand_zones(line)
+                self._track_instance_locations(line)
+
+        # Count revealed cards
+        player_cards, opponent_cards = self._count_revealed_cards()
+
+        return player_cards, opponent_cards
 
     def _build_split_card_map(self):
         """Build a map of split card half grpIds to full card grpIds"""
@@ -65,7 +97,7 @@ class MTGArenaMatchParser:
 
         return grp_map
 
-    def detect_player_seat(self):
+    def _detect_player_seat(self):
         """Detect which seat ID belongs to the local player"""
         player_seat_id = self._detect_seat_from_connect_resp()
 
@@ -127,7 +159,7 @@ class MTGArenaMatchParser:
                         pass
         return None
 
-    def build_instance_mappings(self, line):
+    def _build_instance_mappings(self, line):
         """Build instance ID to grpId mappings from a log line"""
         if '"grpId"' not in line or '"instanceId"' not in line:
             return
@@ -150,7 +182,7 @@ class MTGArenaMatchParser:
 
             self.instance_to_grp[instance_id] = normalized_grp_id
 
-    def process_instance_id_changes(self, line):
+    def _process_instance_id_changes(self, line):
         """Process ObjectIdChanged annotations"""
         if '"AnnotationType_ObjectIdChanged"' not in line:
             return
@@ -169,7 +201,7 @@ class MTGArenaMatchParser:
             if old_id in self.instance_to_grp:
                 self.instance_to_grp[new_id] = self.instance_to_grp[old_id]
 
-    def extract_player_deck(self, line):
+    def _extract_player_deck(self, line):
         """Extract player's starting deck from deckMessage"""
         if '"deckMessage"' not in line or '"deckCards"' not in line:
             return
@@ -184,7 +216,7 @@ class MTGArenaMatchParser:
         except (ValueError, AttributeError):
             pass
 
-    def extract_opponent_deck_size(self, line):
+    def _extract_opponent_deck_size(self, line):
         """Extract opponent's deck size from library zone (track maximum size seen)"""
         if '"ZoneType_Library"' not in line:
             return
@@ -200,7 +232,7 @@ class MTGArenaMatchParser:
                     if library_size > self.opponent_deck_size:
                         self.opponent_deck_size = library_size
 
-    def extract_commanders(self, line):
+    def _extract_commanders(self, line):
         """Extract commanders from command zone (zone 32 for seat 1, zone 34 for seat 2)"""
         if '"ZoneType_Command"' not in line:
             return
@@ -236,7 +268,7 @@ class MTGArenaMatchParser:
         except (json.JSONDecodeError, KeyError, TypeError):
             pass
 
-    def extract_hand_zones(self, line):
+    def _extract_hand_zones(self, line):
         """Extract hand zone contents"""
         if '"ZoneType_Hand"' not in line or '"objectInstanceIds"' not in line:
             return
@@ -264,7 +296,7 @@ class MTGArenaMatchParser:
             for item in obj:
                 yield from self.find_game_objects(item)
 
-    def track_instance_locations(self, line):
+    def _track_instance_locations(self, line):
         """Track current location of card instances"""
         if '"gameObjects"' not in line or '"instanceId"' not in line:
             return
@@ -310,7 +342,7 @@ class MTGArenaMatchParser:
         except (json.JSONDecodeError, KeyError, TypeError):
             pass
 
-    def count_revealed_cards(self):
+    def _count_revealed_cards(self):
         """Count cards from all tracked zones with unified deduplication logic"""
         player_cards = defaultdict(int)
         opponent_cards = defaultdict(int)
@@ -375,278 +407,3 @@ class MTGArenaMatchParser:
                 opponent_cards[grp_id] += num_copies
 
         return player_cards, opponent_cards
-
-    def parse(self):
-        """Main parsing method"""
-        print(f"📖 Parsing detailed logs for match: {self.match_id[:8]}...")
-
-        # Detect player seat
-        self.detect_player_seat()
-
-        # Parse log file
-        with open(self.log_path, 'r', encoding='utf-8', errors='ignore') as f:
-            in_match = False
-
-            for line in f:
-                if self.match_id in line:
-                    in_match = True
-
-                if not in_match:
-                    continue
-
-                # Check if different match started
-                if 'matchId' in line and self.match_id not in line:
-                    break
-
-                # Process each line
-                self.build_instance_mappings(line)
-                self.process_instance_id_changes(line)
-                self.extract_player_deck(line)
-                self.extract_opponent_deck_size(line)
-                self.extract_commanders(line)
-                self.extract_hand_zones(line)
-                self.track_instance_locations(line)
-
-        # Count revealed cards
-        player_cards, opponent_cards = self.count_revealed_cards()
-
-        return player_cards, opponent_cards
-
-
-class OutputFormatter:
-    """Format and display parsed results"""
-
-    @staticmethod
-    def format_card_list(cards, card_db):
-        """Format a dictionary of cards into sorted list with names"""
-        card_list = []
-        for grp_id, count in cards.items():
-            card_info = card_db.get(str(grp_id))
-            if card_info:
-                name = card_info['name']
-                card_list.append((name, count))
-        return sorted(card_list)
-
-    @staticmethod
-    def format_card_list_by_type(cards, card_db):
-        """Format cards grouped by type"""
-        # Group cards by their primary type
-        type_groups = {
-            'Creature': [],
-            'Planeswalker': [],
-            'Artifact': [],
-            'Enchantment': [],
-            'Instant': [],
-            'Sorcery': [],
-            'Land': [],
-            'Other': []
-        }
-
-        for grp_id, count in cards.items():
-            card_info = card_db.get(str(grp_id))
-            if card_info:
-                name = card_info['name']
-                types = card_info.get('types', [])
-
-                # Determine primary type (first type in list)
-                primary_type = types[0] if types else 'Other'
-
-                # If type not in our predefined groups, put in Other
-                if primary_type not in type_groups:
-                    primary_type = 'Other'
-
-                type_groups[primary_type].append((name, count))
-
-        # Sort cards within each group
-        for type_name in type_groups:
-            type_groups[type_name].sort()
-
-        return type_groups
-
-    @staticmethod
-    def print_card_list(card_list):
-        """Print a formatted card list"""
-        for i, (name, count) in enumerate(card_list, 1):
-            if count > 1:
-                print(f"  {i:2d}. {name} (x{count})")
-            else:
-                print(f"  {i:2d}. {name}")
-
-    @staticmethod
-    def print_grouped_card_list(type_groups):
-        """Print cards grouped by type"""
-        # Define display order and plural forms
-        type_display = {
-            'Creature': 'Creatures',
-            'Planeswalker': 'Planeswalkers',
-            'Instant': 'Instants',
-            'Sorcery': 'Sorceries',
-            'Artifact': 'Artifacts',
-            'Enchantment': 'Enchantments',
-            'Land': 'Lands',
-            'Other': 'Other'
-        }
-
-        for type_name, plural_name in type_display.items():
-            cards = type_groups.get(type_name, [])
-            if cards:
-                # Count total cards in this group (counting duplicates)
-                total_in_group = sum(count for name, count in cards)
-                print(f"\n  {plural_name} ({total_in_group}):")
-                for name, count in cards:
-                    if count > 1:
-                        print(f"    • {name} (x{count})")
-                    else:
-                        print(f"    • {name}")
-
-    @staticmethod
-    def display_player_deck(player_cards, player_deck, card_db, commander=None):
-        """Display player's deck information"""
-        print("")
-        print("=" * 60)
-        print("🃏 YOUR DECK")
-        print("=" * 60)
-        print("")
-
-        if player_deck:
-            total_cards = sum(player_deck.values())
-            # Add commander to total if present (Commander format)
-            if commander:
-                total_cards += 1
-            revealed_count = sum(player_cards.values())
-
-            print("📦 REVEALED CARDS:")
-
-            if player_cards:
-                type_groups = OutputFormatter.format_card_list_by_type(player_cards, card_db)
-                OutputFormatter.print_grouped_card_list(type_groups)
-            else:
-                print("  (None)")
-
-            print("")
-            unrevealed = total_cards - revealed_count
-            print(f"📊 Deck: {total_cards} cards total | {revealed_count} revealed | {unrevealed} unrevealed")
-
-        elif player_cards:
-            card_list = OutputFormatter.format_card_list(player_cards, card_db)
-            OutputFormatter.print_card_list(card_list)
-            print("")
-            print(f"📊 Total: {len(player_cards)} unique cards revealed")
-        else:
-            print("No cards found")
-
-    @staticmethod
-    def display_opponent_deck(opponent_cards, opponent_deck_size, card_db, commander=None):
-        """Display opponent's deck information"""
-        print("")
-        print("=" * 60)
-        print("🎴 OPPONENT'S DECK")
-        print("=" * 60)
-        print("")
-
-        if opponent_cards:
-            print("📦 REVEALED CARDS:")
-
-            type_groups = OutputFormatter.format_card_list_by_type(opponent_cards, card_db)
-            OutputFormatter.print_grouped_card_list(type_groups)
-
-            print("")
-            revealed_count = sum(opponent_cards.values())
-            unique_count = len(opponent_cards)
-
-            # Show revealed stats without total (opponent's full deck is hidden)
-            print(f"📊 Revealed: {unique_count} unique cards | {revealed_count} total cards")
-
-            if commander:
-                card_name = card_db.get(str(commander), {}).get('name', 'Unknown')
-                print(f"👑 Commander detected: {card_name}")
-        else:
-            if opponent_deck_size > 0:
-                print(f"No cards revealed (opponent has {opponent_deck_size} cards in deck)")
-            else:
-                print("No opponent cards found")
-
-        print("")
-        print("=" * 60)
-
-
-def load_card_database():
-    """Load the extracted card database"""
-    db_path = os.path.expanduser("./src/cards_database/card_database.json")
-    if not os.path.exists(db_path):
-        print("⚠️  Card database not found.")
-
-        extractor = CardDatabaseExtractor()
-        success = extractor.extract()
-
-        if not success:
-            exit(1)
-
-        db_path = os.path.expanduser("./src/cards_database/card_database.json")
-        if not os.path.exists(db_path):
-            print("⚠️  Failed importing Cards.")
-            return {}
-
-    with open(db_path, 'r') as f:
-        return json.load(f)
-
-
-def check_detailed_logging_enabled(log_file):
-    """Check if detailed logging is enabled"""
-    with open(log_file, 'r') as f:
-        first_lines = f.read(1000)
-        return "DETAILED LOGS: DISABLED" not in first_lines
-
-
-def parse_basic_log(match_id):
-    """Parse basic log information when detailed logging is not enabled"""
-    print(f"📖 Parsing logs for match: {match_id[:8]}...")
-    print("")
-    print("=" * 60)
-    print("⚠️  DETAILED LOGGING NOT ENABLED")
-    print("=" * 60)
-    print("")
-    print("To use this parser, you must enable detailed logging in MTG Arena:")
-    print("")
-    print("1. Launch MTG Arena")
-    print("2. Click the gear icon (⚙️) in the top right")
-    print("3. Go to 'View Account' (bottom of settings menu)")
-    print("4. Enable 'Detailed Logs (Plugin Support)'")
-    print("5. Restart MTG Arena")
-    print("")
-
-
-def main():
-    """Main entry point"""
-    if len(sys.argv) < 3:
-        print("Usage: parse_cards_enhanced.py <log_file> <match_id>")
-        sys.exit(1)
-
-    log_file = sys.argv[1]
-    match_id = sys.argv[2]
-
-    # Load card database
-    card_db = load_card_database()
-    if card_db:
-        print(f"✅ Loaded {len(card_db)} cards from database")
-        print("")
-
-    # Check if detailed logging is enabled
-    if not check_detailed_logging_enabled(log_file):
-        parse_basic_log(match_id)
-        return
-
-    # Parse the match
-    parser = MTGArenaMatchParser(log_file, match_id, card_db)
-    player_cards, opponent_cards = parser.parse()
-
-    # Display results
-    if opponent_cards or player_cards or parser.player_deck:
-        OutputFormatter.display_player_deck(player_cards, parser.player_deck, card_db, parser.player_commander)
-        OutputFormatter.display_opponent_deck(opponent_cards, parser.opponent_deck_size, card_db, parser.opponent_commander)
-    else:
-        parse_basic_log(match_id)
-
-
-if __name__ == "__main__":
-    main()

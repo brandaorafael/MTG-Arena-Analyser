@@ -5,6 +5,7 @@
 
 PLAYER_LOG="/Users/rafael.brandao/Library/Logs/Wizards Of The Coast/MTGA/Player.log"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHON_CMD=python3
 
 echo "🔍 MTG Arena Match Log Parser"
 echo "================================"
@@ -29,10 +30,11 @@ fi
 echo "Match ID: $LAST_MATCH"
 echo ""
 
+MATCH_PARSER="$SCRIPT_DIR/src/app.py"
 # Call enhanced Python parser
-if [ -f "$SCRIPT_DIR/parse_cards_enhanced.py" ]; then
-    python3 "$SCRIPT_DIR/parse_cards_enhanced.py" "$PLAYER_LOG" "$LAST_MATCH"
+if [ -f "$MATCH_PARSER" ]; then
+    $PYTHON_CMD "$MATCH_PARSER" parse-match "$PLAYER_LOG" "$LAST_MATCH"
 else
-    echo "❌ Parser not found: $SCRIPT_DIR/parse_cards_enhanced.py"
+    echo "❌ Parser not found: $MATCH_PARSER"
     exit 1
 fi

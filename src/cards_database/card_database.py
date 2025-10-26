@@ -10,16 +10,16 @@ import os
 import glob
 
 
-class CardDatabaseExtractor:
-    """Extracts card data from MTG Arena's SQLite database"""
+class CardDatabase:
+    """Extracts and loads card data from MTG Arena's SQLite database"""
 
     def __init__(self):
         self.mtga_path = os.path.expanduser(
-            "~/Library/Application Support/com.wizards.mtga/Downloads/Raw/"
+            "/Users/rafael.brandao/Library/Application Support/com.wizards.mtga/Downloads/Raw/"
         )
         self.output_path = os.path.expanduser("./src/cards_database/card_database.json")
 
-    def find_database(self):
+    def _find_database(self):
         """Find the Raw_CardDatabase file"""
         pattern = os.path.join(self.mtga_path, "Raw_CardDatabase_*.mtga")
         files = glob.glob(pattern)
@@ -28,7 +28,7 @@ class CardDatabaseExtractor:
             return files[0]
         return None
 
-    def decode_types(self, types_value):
+    def _decode_types(self, types_value):
         """Decode card types from comma-separated type IDs"""
         # MTG card type IDs
         type_map = {
@@ -63,7 +63,7 @@ class CardDatabaseExtractor:
 
         return types
 
-    def extract_cards(self, db_path):
+    def _extract_cards(self, db_path):
         """Extract all cards with their names and types from the database"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
@@ -83,7 +83,7 @@ class CardDatabaseExtractor:
             grp_id, name, expansion, collector_num, types_value = row
 
             # Decode card types
-            types = self.decode_types(types_value) if types_value else []
+            types = self._decode_types(types_value) if types_value else []
 
             cards[grp_id] = {
                 "name": name,
@@ -95,12 +95,12 @@ class CardDatabaseExtractor:
         conn.close()
         return cards
 
-    def save_to_json(self, cards):
-        """Save card data to JSON file"""
+    def _save_to_json(self, cards):
+        """Save card data to a JSON file"""
         with open(self.output_path, 'w') as f:
             json.dump(cards, f, indent=2)
 
-    def display_sample(self, cards, count=5):
+    def _display_sample(self, cards, count=5):
         """Display a sample of extracted cards"""
         print("")
         print("Sample cards:")
@@ -113,7 +113,7 @@ class CardDatabaseExtractor:
         """Main extraction process"""
         print("🔍 Finding MTG Arena card database...")
 
-        db_path = self.find_database()
+        db_path = self._find_database()
         if not db_path:
             print("❌ Card database not found!")
             print(f"Expected location: {self.mtga_path}")
@@ -122,12 +122,34 @@ class CardDatabaseExtractor:
         print(f"✅ Found database: {os.path.basename(db_path)}")
         print("📊 Extracting card data...")
 
-        cards = self.extract_cards(db_path)
+        cards = self._extract_cards(db_path)
         print(f"✅ Extracted {len(cards)} cards")
 
-        self.save_to_json(cards)
+        self._save_to_json(cards)
         print(f"💾 Saved to: {self.output_path}")
 
-        self.display_sample(cards)
+        self._display_sample(cards)
 
         return True
+
+    def load_card_database(self):
+        """Load the extracted card database"""
+        path = "./src/cards_database/card_database.json"
+
+        db_path = os.path.expanduser(path)
+        if not os.path.exists(db_path):
+            print("⚠️  Card database not found.")
+
+            extractor = CardDatabase()
+            success = extractor.extract()
+
+            if not success:
+                exit(1)
+
+            db_path = os.path.expanduser(path)
+            if not os.path.exists(db_path):
+                print("⚠️  Failed importing Cards.")
+                return {}
+
+        with open(db_path, 'r') as f:
+            return json.load(f)
