@@ -125,11 +125,14 @@ class OutputFormatter:
             print("No cards found")
 
     @staticmethod
-    def display_opponent_deck(opponent_cards: Dict[int, int], opponent_deck_size: int, card_db: Dict[str, Dict[str, Any]], commander: Optional[int] = None) -> None:
+    def display_opponent_deck(opponent_cards: Dict[int, int], opponent_deck_size: int, card_db: Dict[str, Dict[str, Any]], commander: Optional[int] = None, opponent_name: Optional[str] = None) -> None:
         """Display opponent's deck information"""
         print("")
         print("=" * 60)
-        print("🎴 OPPONENT'S DECK")
+        if opponent_name:
+            print(f"🎴 OPPONENT'S DECK ({opponent_name})")
+        else:
+            print("🎴 OPPONENT'S DECK")
         print("=" * 60)
         print("")
 

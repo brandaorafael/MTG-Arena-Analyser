@@ -5,8 +5,8 @@ services:
     build: .
     command: tail -f /dev/null
     volumes:
-      - "/Users/rafael.brandao/Library/Logs/Wizards Of The Coast/MTGA/Player.log:/Users/rafael.brandao/Library/Logs/Wizards Of The Coast/MTGA/Player.log:ro"
-      - "/Users/rafael.brandao/Library/Application Support/com.wizards.mtga/Downloads/Raw:/Users/rafael.brandao/Library/Application Support/com.wizards.mtga/Downloads/Raw"
+      - "/Users/rafael.brandao/Library/Logs/Wizards Of The Coast/MTGA:/Users/rafael.brandao/Library/Logs/Wizards Of The Coast/MTGA:ro"
+      - "/Users/rafael.brandao/Library/Application Support/com.wizards.mtga/Downloads/Raw:/Users/rafael.brandao/Library/Application Support/com.wizards.mtga/Downloads/Raw:ro"
       - "./src:/app/src"
       - "./get-cards-last-match.sh:/app/get-cards-last-match.sh"
     container_name: mtg-arena-parser

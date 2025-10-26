@@ -49,7 +49,7 @@ def parse_match(log_file: str, match_id: str) -> None:
     # Display results
     if opponent_cards or player_cards or parser.player_deck:
         OutputFormatter.display_player_deck(player_cards, parser.player_deck, card_db, parser.player_commander)
-        OutputFormatter.display_opponent_deck(opponent_cards, parser.opponent_deck_size, card_db, parser.opponent_commander)
+        OutputFormatter.display_opponent_deck(opponent_cards, parser.opponent_deck_size, card_db, parser.opponent_commander, parser.opponent_name)
     else:
         Helper.parse_basic_log(match_id)
 

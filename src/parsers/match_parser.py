@@ -21,6 +21,7 @@ class MatchParser:
         # Game state tracking
         self.player_seat_id: Optional[int] = None
         self.opponent_seat_id: Optional[int] = None
+        self.opponent_name: Optional[str] = None
         self.instance_locations: Dict[int, Dict[str, Any]] = {}
         self.instance_id_map: Dict[int, int] = {}
         self.instance_to_grp: Dict[int, int] = {}
@@ -41,6 +42,9 @@ class MatchParser:
 
         # Detect player seat
         self._detect_player_seat()
+
+        # Extract opponent name
+        self._extract_opponent_name()
 
         # Parse log file
         with open(self.log_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -74,13 +78,25 @@ class MatchParser:
     def _build_split_card_map(self) -> Dict[int, int]:
         """Build a map of split card half grpIds to full card grpIds"""
         grp_map: Dict[int, int] = {}
-        full_cards: Dict[str, int] = {}  # name -> grpId for full split cards
+        full_cards: Dict[str, int] = {}  # name -> canonical grpId for full split cards
+        full_card_grp_ids: Dict[str, List[int]] = {}  # name -> all grpIds for that full card
 
-        # First pass: find all full split cards
+        # First pass: find all full split cards (both // and /// separators)
+        # and track all grpIds for each unique card name
         for grp_id_str, card_info in self.card_db.items():
             name: str = card_info.get('name', '')
-            if ' /// ' in name:
-                full_cards[name] = int(grp_id_str)
+            grp_id: int = int(grp_id_str)
+            if ' // ' in name or ' /// ' in name:
+                if name not in full_cards:
+                    full_cards[name] = grp_id  # Use first grpId as canonical
+                    full_card_grp_ids[name] = []
+                full_card_grp_ids[name].append(grp_id)
+
+        # Map all duplicate full card grpIds to the canonical one
+        for name, canonical_grp_id in full_cards.items():
+            for grp_id in full_card_grp_ids[name]:
+                if grp_id != canonical_grp_id:
+                    grp_map[grp_id] = canonical_grp_id
 
         # Second pass: map halves to full cards
         for grp_id_str, card_info in self.card_db.items():
@@ -89,8 +105,15 @@ class MatchParser:
 
             # Check if this card name is a half of any split card
             for full_name, full_grp_id in full_cards.items():
-                if ' /// ' in full_name:
-                    parts: List[str] = full_name.split(' /// ')
+                # Try both separator types
+                separator: Optional[str] = None
+                if ' // ' in full_name:
+                    separator = ' // '
+                elif ' /// ' in full_name:
+                    separator = ' /// '
+
+                if separator:
+                    parts: List[str] = full_name.split(separator)
                     if name in [p.strip() for p in parts]:
                         # This is a half, map it to the full card
                         grp_map[grp_id] = full_grp_id
@@ -161,6 +184,30 @@ class MatchParser:
                     except (json.JSONDecodeError, KeyError, TypeError):
                         pass
         return None
+
+    def _extract_opponent_name(self) -> None:
+        """Extract opponent's name from reservedPlayers"""
+        with open(self.log_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                if self.match_id not in line:
+                    continue
+
+                if '"reservedPlayers"' in line:
+                    try:
+                        data: Dict[str, Any] = json.loads(line)
+                        game_room_event: Dict[str, Any] = data.get('matchGameRoomStateChangedEvent', {})
+                        game_room_info: Dict[str, Any] = game_room_event.get('gameRoomInfo', {})
+                        game_room_config: Dict[str, Any] = game_room_info.get('gameRoomConfig', {})
+                        reserved_players: List[Dict[str, Any]] = game_room_config.get('reservedPlayers', [])
+
+                        for player in reserved_players:
+                            seat_id: Optional[int] = player.get('systemSeatId')
+                            player_name: str = player.get('playerName', 'Unknown')
+                            if seat_id == self.opponent_seat_id:
+                                self.opponent_name = player_name
+                                return
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        pass
 
     def _build_instance_mappings(self, line: str) -> None:
         """Build instance ID to grpId mappings from a log line"""
@@ -370,14 +417,20 @@ class MatchParser:
         # This ensures we only count each instance once from its last known zone
         instance_final_location: Dict[int, Dict[str, Any]] = {}
 
+        # Valid instances are those that either:
+        # 1. Went through ObjectIdChanged (instances_with_history), OR
+        # 2. Are in the current actual hand (final_player_hand / final_opponent_hand)
+        valid_instances: Set[int] = instances_with_history.copy()
+        valid_instances.update(self.final_player_hand)
+        valid_instances.update(self.final_opponent_hand)
+
         for instance_id, location in self.instance_locations.items():
             # Skip obsolete instances (replaced by newer instance IDs)
             if instance_id in obsolete_instances:
                 continue
 
-            # Only count instances that are part of ObjectIdChanged chains
-            # This filters out orphaned split card halves and temporary revealed instances
-            if instance_id not in instances_with_history:
+            # Only count valid instances (filters out stale mulligan instances)
+            if instance_id not in valid_instances:
                 continue
 
             zone: Optional[int] = location['zone']
@@ -403,6 +456,10 @@ class MatchParser:
         # Count the number of physical cards for each (grpId, owner, zone)
         for (grp_id, owner, zone), instance_set in zone_cards.items():
             num_copies: int = len(instance_set)
+
+            # Skip if this grpId is a split card half (it should already be counted under the full card)
+            if grp_id in self.split_card_grp_map:
+                continue
 
             if owner == self.player_seat_id:
                 player_cards[grp_id] += num_copies
