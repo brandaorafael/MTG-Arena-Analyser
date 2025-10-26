@@ -1,5 +1,6 @@
 .DS_Store
-__pycache__/*
+__pycache__/
+src/cards_database/__pycache__/
 .idea/
 
-card_database.json
+src/cards_database/card_database.json

@@ -115,7 +115,7 @@ class MatchMonitor:
 
 def load_card_database():
     """Load the extracted card database"""
-    db_path = os.path.expanduser("~/Projects/MTGArena/card_database.json")
+    db_path = os.path.expanduser("./src/cards_database/card_database.json")
     if not os.path.exists(db_path):
         return {}
 

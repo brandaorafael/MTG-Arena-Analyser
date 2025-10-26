@@ -17,7 +17,7 @@ class CardDatabaseExtractor:
         self.mtga_path = os.path.expanduser(
             "~/Library/Application Support/com.wizards.mtga/Downloads/Raw/"
         )
-        self.output_path = os.path.expanduser("~/Projects/MTGArena/card_database.json")
+        self.output_path = os.path.expanduser("./src/cards_database/card_database.json")
 
     def find_database(self):
         """Find the Raw_CardDatabase file"""

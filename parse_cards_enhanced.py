@@ -10,10 +10,10 @@ import re
 import os
 from collections import defaultdict
 
-from extract_card_database import CardDatabaseExtractor
+from src.cards_database.extract_card_database import CardDatabaseExtractor
 
 
-class MTGArenaLogParser:
+class MTGArenaMatchParser:
     """Parser for MTG Arena game logs"""
 
     def __init__(self, log_path, match_id, card_db):
@@ -572,7 +572,7 @@ class OutputFormatter:
 
 def load_card_database():
     """Load the extracted card database"""
-    db_path = os.path.expanduser("~/Projects/MTGArena/card_database.json")
+    db_path = os.path.expanduser("./src/cards_database/card_database.json")
     if not os.path.exists(db_path):
         print("⚠️  Card database not found.")
 
@@ -582,7 +582,7 @@ def load_card_database():
         if not success:
             exit(1)
 
-        db_path = os.path.expanduser("~/Projects/MTGArena/card_database.json")
+        db_path = os.path.expanduser("./src/cards_database/card_database.json")
         if not os.path.exists(db_path):
             print("⚠️  Failed importing Cards.")
             return {}
@@ -598,7 +598,7 @@ def check_detailed_logging_enabled(log_file):
         return "DETAILED LOGS: DISABLED" not in first_lines
 
 
-def parse_basic_log(log_path, match_id):
+def parse_basic_log(match_id):
     """Parse basic log information when detailed logging is not enabled"""
     print(f"📖 Parsing logs for match: {match_id[:8]}...")
     print("")
@@ -633,11 +633,11 @@ def main():
 
     # Check if detailed logging is enabled
     if not check_detailed_logging_enabled(log_file):
-        parse_basic_log(log_file, match_id)
+        parse_basic_log(match_id)
         return
 
     # Parse the match
-    parser = MTGArenaLogParser(log_file, match_id, card_db)
+    parser = MTGArenaMatchParser(log_file, match_id, card_db)
     player_cards, opponent_cards = parser.parse()
 
     # Display results
@@ -645,7 +645,7 @@ def main():
         OutputFormatter.display_player_deck(player_cards, parser.player_deck, card_db, parser.player_commander)
         OutputFormatter.display_opponent_deck(opponent_cards, parser.opponent_deck_size, card_db, parser.opponent_commander)
     else:
-        parse_basic_log(log_file, match_id)
+        parse_basic_log(match_id)
 
 
 if __name__ == "__main__":
