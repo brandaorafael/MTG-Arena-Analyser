@@ -10,6 +10,8 @@ import re
 import os
 from collections import defaultdict
 
+from extract_card_database import CardDatabaseExtractor
+
 
 class MTGArenaLogParser:
     """Parser for MTG Arena game logs"""
@@ -572,8 +574,18 @@ def load_card_database():
     """Load the extracted card database"""
     db_path = os.path.expanduser("~/Projects/MTGArena/card_database.json")
     if not os.path.exists(db_path):
-        print("⚠️  Card database not found. Run: ./extract_card_database.py")
-        return {}
+        print("⚠️  Card database not found.")
+
+        extractor = CardDatabaseExtractor()
+        success = extractor.extract()
+
+        if not success:
+            exit(1)
+
+        db_path = os.path.expanduser("~/Projects/MTGArena/card_database.json")
+        if not os.path.exists(db_path):
+            print("⚠️  Failed importing Cards.")
+            return {}
 
     with open(db_path, 'r') as f:
         return json.load(f)

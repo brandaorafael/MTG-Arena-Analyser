@@ -131,16 +131,3 @@ class CardDatabaseExtractor:
         self.display_sample(cards)
 
         return True
-
-
-def main():
-    """Main entry point"""
-    extractor = CardDatabaseExtractor()
-    success = extractor.extract()
-
-    if not success:
-        exit(1)
-
-
-if __name__ == "__main__":
-    main()
