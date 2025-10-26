@@ -113,24 +113,26 @@ class MatchParser:
         self.opponent_seat_id = 2 if player_seat_id == 1 else 1
 
     def _detect_seat_from_connect_resp(self) -> Optional[int]:
-        """Detect seat from GREMessageType_ConnectResp message"""
+        """Detect seat from messages with single systemSeatIds (sent only to local player)"""
         with open(self.log_path, 'r', encoding='utf-8', errors='ignore') as f:
             for line in f:
                 if self.match_id not in line:
                     continue
 
-                if '"GREMessageType_ConnectResp"' in line and '"systemSeatIds"' in line:
+                # Look for any message with systemSeatIds containing a single seat
+                # These messages are only sent to the local player
+                if '"systemSeatIds"' in line and '"greToClientEvent"' in line:
                     try:
                         data: Dict[str, Any] = json.loads(line)
                         gre_event: Dict[str, Any] = data.get('greToClientEvent', {})
                         messages: List[Dict[str, Any]] = gre_event.get('greToClientMessages', [])
 
                         for msg in messages:
-                            if msg.get('type') == 'GREMessageType_ConnectResp':
-                                seat_ids: List[int] = msg.get('systemSeatIds', [])
-                                if seat_ids and len(seat_ids) == 1:
-                                    print(f"🎮 You are seat {seat_ids[0]}")
-                                    return seat_ids[0]
+                            seat_ids: List[int] = msg.get('systemSeatIds', [])
+                            # If systemSeatIds has exactly one seat, that's the local player
+                            if seat_ids and len(seat_ids) == 1:
+                                print(f"🎮 You are seat {seat_ids[0]}")
+                                return seat_ids[0]
                     except (json.JSONDecodeError, KeyError, TypeError, IndexError):
                         pass
         return None
