@@ -30,6 +30,8 @@ class MTGArenaLogParser:
         self.player_deck = defaultdict(int)
         self.opponent_deck = defaultdict(int)
         self.opponent_deck_size = 0
+        self.player_commander = None
+        self.opponent_commander = None
 
         # Build split card normalization map
         self.split_card_grp_map = self._build_split_card_map()
@@ -193,6 +195,42 @@ class MTGArenaLogParser:
                     instance_ids = [x.strip() for x in instance_ids_str.split(',') if x.strip()]
                     self.opponent_deck_size = len(instance_ids)
 
+    def extract_commanders(self, line):
+        """Extract commanders from command zone (zone 32 for seat 1, zone 34 for seat 2)"""
+        if '"ZoneType_Command"' not in line:
+            return
+
+        try:
+            data = json.loads(line)
+
+            def find_zones(obj):
+                if isinstance(obj, dict):
+                    if 'type' in obj and obj.get('type') == 'ZoneType_Command':
+                        yield obj
+                    for value in obj.values():
+                        yield from find_zones(value)
+                elif isinstance(obj, list):
+                    for item in obj:
+                        yield from find_zones(item)
+
+            for zone_obj in find_zones(data):
+                owner = zone_obj.get('ownerSeatId')
+                instance_ids = zone_obj.get('objectInstanceIds', [])
+
+                if not instance_ids:
+                    continue
+
+                # Get the first card in command zone (the commander)
+                for inst_id in instance_ids:
+                    if inst_id in self.instance_to_grp:
+                        grp_id = self.instance_to_grp[inst_id]
+                        if owner == self.player_seat_id and not self.player_commander:
+                            self.player_commander = grp_id
+                        elif owner == self.opponent_seat_id and not self.opponent_commander:
+                            self.opponent_commander = grp_id
+        except (json.JSONDecodeError, KeyError, TypeError):
+            pass
+
     def extract_hand_zones(self, line):
         """Extract hand zone contents"""
         if '"ZoneType_Hand"' not in line or '"objectInstanceIds"' not in line:
@@ -245,11 +283,19 @@ class MTGArenaLogParser:
                     if str(grp_id) not in self.card_db:
                         continue
 
+                    # Normalize split cards
+                    normalized_grp_id = self.split_card_grp_map.get(grp_id, grp_id)
+
+                    # Check for commanders in command zone (zone 32 for seat 1, zone 34 for seat 2)
+                    # Zone 32 = Seat 1 command zone, Zone 34 = Seat 2 command zone
+                    if zone_id in [32, 34]:
+                        if owner == self.player_seat_id and not self.player_commander:
+                            self.player_commander = normalized_grp_id
+                        elif owner == self.opponent_seat_id and not self.opponent_commander:
+                            self.opponent_commander = normalized_grp_id
+
                     # Only track visible cards
                     if visibility == "Visibility_Public" or owner == self.player_seat_id:
-                        # Normalize split cards
-                        normalized_grp_id = self.split_card_grp_map.get(grp_id, grp_id)
-
                         self.instance_locations[instance_id] = {
                             'grpId': normalized_grp_id,
                             'zone': zone_id,
@@ -341,6 +387,7 @@ class MTGArenaLogParser:
                 self.process_instance_id_changes(line)
                 self.extract_player_deck(line)
                 self.extract_opponent_deck_size(line)
+                self.extract_commanders(line)
                 self.extract_hand_zones(line)
                 self.track_instance_locations(line)
 
@@ -374,7 +421,7 @@ class OutputFormatter:
                 print(f"  {i:2d}. {name}")
 
     @staticmethod
-    def display_player_deck(player_cards, player_deck, card_db):
+    def display_player_deck(player_cards, player_deck, card_db, commander=None):
         """Display player's deck information"""
         print("")
         print("=" * 60)
@@ -384,6 +431,9 @@ class OutputFormatter:
 
         if player_deck:
             total_cards = sum(player_deck.values())
+            # Add commander to total if present (Commander format)
+            if commander:
+                total_cards += 1
             revealed_count = sum(player_cards.values())
 
             print("📦 REVEALED CARDS:")
@@ -504,7 +554,7 @@ def main():
 
     # Display results
     if opponent_cards or player_cards or parser.player_deck:
-        OutputFormatter.display_player_deck(player_cards, parser.player_deck, card_db)
+        OutputFormatter.display_player_deck(player_cards, parser.player_deck, card_db, parser.player_commander)
         OutputFormatter.display_opponent_deck(opponent_cards, parser.opponent_deck_size, card_db)
     else:
         parse_basic_log(log_file, match_id)
