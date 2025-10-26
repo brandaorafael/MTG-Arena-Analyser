@@ -183,8 +183,8 @@ class MTGArenaLogParser:
             pass
 
     def extract_opponent_deck_size(self, line):
-        """Extract opponent's deck size from library zone"""
-        if '"ZoneType_Library"' not in line or self.opponent_deck_size:
+        """Extract opponent's deck size from library zone (track maximum size seen)"""
+        if '"ZoneType_Library"' not in line:
             return
 
         if '"ownerSeatId"' in line:
@@ -193,7 +193,10 @@ class MTGArenaLogParser:
                 if instance_ids_match:
                     instance_ids_str = instance_ids_match.group(1)
                     instance_ids = [x.strip() for x in instance_ids_str.split(',') if x.strip()]
-                    self.opponent_deck_size = len(instance_ids)
+                    library_size = len(instance_ids)
+                    # Keep the maximum library size (starting deck size)
+                    if library_size > self.opponent_deck_size:
+                        self.opponent_deck_size = library_size
 
     def extract_commanders(self, line):
         """Extract commanders from command zone (zone 32 for seat 1, zone 34 for seat 2)"""
@@ -423,6 +426,42 @@ class OutputFormatter:
         return sorted(card_list)
 
     @staticmethod
+    def format_card_list_by_type(cards, card_db):
+        """Format cards grouped by type"""
+        # Group cards by their primary type
+        type_groups = {
+            'Creature': [],
+            'Planeswalker': [],
+            'Artifact': [],
+            'Enchantment': [],
+            'Instant': [],
+            'Sorcery': [],
+            'Land': [],
+            'Other': []
+        }
+
+        for grp_id, count in cards.items():
+            card_info = card_db.get(str(grp_id))
+            if card_info:
+                name = card_info['name']
+                types = card_info.get('types', [])
+
+                # Determine primary type (first type in list)
+                primary_type = types[0] if types else 'Other'
+
+                # If type not in our predefined groups, put in Other
+                if primary_type not in type_groups:
+                    primary_type = 'Other'
+
+                type_groups[primary_type].append((name, count))
+
+        # Sort cards within each group
+        for type_name in type_groups:
+            type_groups[type_name].sort()
+
+        return type_groups
+
+    @staticmethod
     def print_card_list(card_list):
         """Print a formatted card list"""
         for i, (name, count) in enumerate(card_list, 1):
@@ -430,6 +469,33 @@ class OutputFormatter:
                 print(f"  {i:2d}. {name} (x{count})")
             else:
                 print(f"  {i:2d}. {name}")
+
+    @staticmethod
+    def print_grouped_card_list(type_groups):
+        """Print cards grouped by type"""
+        # Define display order and plural forms
+        type_display = {
+            'Creature': 'Creatures',
+            'Planeswalker': 'Planeswalkers',
+            'Instant': 'Instants',
+            'Sorcery': 'Sorceries',
+            'Artifact': 'Artifacts',
+            'Enchantment': 'Enchantments',
+            'Land': 'Lands',
+            'Other': 'Other'
+        }
+
+        for type_name, plural_name in type_display.items():
+            cards = type_groups.get(type_name, [])
+            if cards:
+                # Count total cards in this group (counting duplicates)
+                total_in_group = sum(count for name, count in cards)
+                print(f"\n  {plural_name} ({total_in_group}):")
+                for name, count in cards:
+                    if count > 1:
+                        print(f"    • {name} (x{count})")
+                    else:
+                        print(f"    • {name}")
 
     @staticmethod
     def display_player_deck(player_cards, player_deck, card_db, commander=None):
@@ -448,11 +514,10 @@ class OutputFormatter:
             revealed_count = sum(player_cards.values())
 
             print("📦 REVEALED CARDS:")
-            print("")
 
             if player_cards:
-                card_list = OutputFormatter.format_card_list(player_cards, card_db)
-                OutputFormatter.print_card_list(card_list)
+                type_groups = OutputFormatter.format_card_list_by_type(player_cards, card_db)
+                OutputFormatter.print_grouped_card_list(type_groups)
             else:
                 print("  (None)")
 
@@ -469,7 +534,7 @@ class OutputFormatter:
             print("No cards found")
 
     @staticmethod
-    def display_opponent_deck(opponent_cards, opponent_deck_size, card_db):
+    def display_opponent_deck(opponent_cards, opponent_deck_size, card_db, commander=None):
         """Display opponent's deck information"""
         print("")
         print("=" * 60)
@@ -479,20 +544,20 @@ class OutputFormatter:
 
         if opponent_cards:
             print("📦 REVEALED CARDS:")
-            print("")
 
-            card_list = OutputFormatter.format_card_list(opponent_cards, card_db)
-            OutputFormatter.print_card_list(card_list)
+            type_groups = OutputFormatter.format_card_list_by_type(opponent_cards, card_db)
+            OutputFormatter.print_grouped_card_list(type_groups)
 
             print("")
             revealed_count = sum(opponent_cards.values())
+            unique_count = len(opponent_cards)
 
-            if opponent_deck_size > 0:
-                unrevealed = opponent_deck_size - revealed_count
-                print(f"📊 Deck: {opponent_deck_size} cards total | {revealed_count} revealed | {unrevealed} unrevealed")
-            else:
-                print(f"📊 Revealed: {len(opponent_cards)} unique cards | {revealed_count} total cards seen")
-                print(f"⚠️  Opponent deck size unknown")
+            # Show revealed stats without total (opponent's full deck is hidden)
+            print(f"📊 Revealed: {unique_count} unique cards | {revealed_count} total cards")
+
+            if commander:
+                card_name = card_db.get(str(commander), {}).get('name', 'Unknown')
+                print(f"👑 Commander detected: {card_name}")
         else:
             if opponent_deck_size > 0:
                 print(f"No cards revealed (opponent has {opponent_deck_size} cards in deck)")
@@ -566,7 +631,7 @@ def main():
     # Display results
     if opponent_cards or player_cards or parser.player_deck:
         OutputFormatter.display_player_deck(player_cards, parser.player_deck, card_db, parser.player_commander)
-        OutputFormatter.display_opponent_deck(opponent_cards, parser.opponent_deck_size, card_db)
+        OutputFormatter.display_opponent_deck(opponent_cards, parser.opponent_deck_size, card_db, parser.opponent_commander)
     else:
         parse_basic_log(log_file, match_id)
 

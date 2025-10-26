@@ -28,13 +28,48 @@ class CardDatabaseExtractor:
             return files[0]
         return None
 
+    def decode_types(self, types_value):
+        """Decode card types from comma-separated type IDs"""
+        # MTG card type IDs
+        type_map = {
+            1: "Artifact",
+            2: "Creature",
+            3: "Enchantment",
+            4: "Instant",
+            5: "Land",
+            8: "Planeswalker",
+            10: "Sorcery",
+            # Add more if discovered
+        }
+
+        types = []
+
+        if not types_value:
+            return types
+
+        # Convert to string for splitting
+        types_str = str(types_value)
+
+        # Split by comma for multi-type cards
+        type_ids = types_str.split(',')
+
+        for type_id_str in type_ids:
+            try:
+                type_id = int(type_id_str.strip())
+                if type_id in type_map:
+                    types.append(type_map[type_id])
+            except ValueError:
+                continue
+
+        return types
+
     def extract_cards(self, db_path):
-        """Extract all cards with their names from the database"""
+        """Extract all cards with their names and types from the database"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         query = """
-        SELECT c.GrpId, l.Loc, c.ExpansionCode, c.CollectorNumber
+        SELECT c.GrpId, l.Loc, c.ExpansionCode, c.CollectorNumber, c.Types
         FROM Cards c
         JOIN Localizations_enUS l ON c.TitleId = l.LocId
         WHERE c.IsToken = 0
@@ -45,11 +80,16 @@ class CardDatabaseExtractor:
         cards = {}
 
         for row in cursor.fetchall():
-            grp_id, name, expansion, collector_num = row
+            grp_id, name, expansion, collector_num, types_value = row
+
+            # Decode card types
+            types = self.decode_types(types_value) if types_value else []
+
             cards[grp_id] = {
                 "name": name,
                 "expansion": expansion,
-                "collector_number": collector_num
+                "collector_number": collector_num,
+                "types": types
             }
 
         conn.close()
@@ -65,7 +105,9 @@ class CardDatabaseExtractor:
         print("")
         print("Sample cards:")
         for grp_id in list(cards.keys())[:count]:
-            print(f"  {grp_id}: {cards[grp_id]['name']}")
+            card = cards[grp_id]
+            types_str = ", ".join(card['types']) if card['types'] else "Unknown"
+            print(f"  {grp_id}: {card['name']} ({types_str})")
 
     def extract(self):
         """Main extraction process"""
