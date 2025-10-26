@@ -10,15 +10,15 @@ import os
 import glob
 from typing import Dict, List, Optional, Any
 
+from src.config import config
+
 
 class CardDatabase:
     """Extracts and loads card data from MTG Arena's SQLite database"""
 
     def __init__(self) -> None:
-        self.mtga_path: str = os.path.expanduser(
-            "/Users/rafael.brandao/Library/Application Support/com.wizards.mtga/Downloads/Raw/"
-        )
-        self.output_path: str = os.path.expanduser("./src/cards_database/card_database.json")
+        self.mtga_path: str = os.path.expanduser(config.card_database_dir)
+        self.output_path: str = os.path.expanduser(config.card_database_json)
 
     def _find_database(self) -> Optional[str]:
         """Find the Raw_CardDatabase file"""

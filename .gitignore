@@ -4,3 +4,7 @@ src/cards_database/__pycache__/
 .idea/
 
 src/cards_database/card_database.json
+
+# Environment-specific configuration
+.env
+config.yaml

@@ -3,9 +3,11 @@
 # MTG Arena Log Parser
 # Extracts opponent's cards from the most recent match
 
-PLAYER_LOG="/Users/rafael.brandao/Library/Logs/Wizards Of The Coast/MTGA/Player.log"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON_CMD=python3
+
+# Load player log path from config
+PLAYER_LOG=$($PYTHON_CMD -c "import yaml; import os; config = yaml.safe_load(open('$SCRIPT_DIR/config.yaml')); print(config['mtga']['player_log'])")
 
 echo "🔍 MTG Arena Match Log Parser"
 echo "================================"
