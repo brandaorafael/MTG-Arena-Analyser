@@ -31,6 +31,36 @@ class MTGArenaLogParser:
         self.opponent_deck = defaultdict(int)
         self.opponent_deck_size = 0
 
+        # Build split card normalization map
+        self.split_card_grp_map = self._build_split_card_map()
+
+    def _build_split_card_map(self):
+        """Build a map of split card half grpIds to full card grpIds"""
+        grp_map = {}
+        full_cards = {}  # name -> grpId for full split cards
+
+        # First pass: find all full split cards
+        for grp_id_str, card_info in self.card_db.items():
+            name = card_info.get('name', '')
+            if ' /// ' in name:
+                full_cards[name] = int(grp_id_str)
+
+        # Second pass: map halves to full cards
+        for grp_id_str, card_info in self.card_db.items():
+            name = card_info.get('name', '')
+            grp_id = int(grp_id_str)
+
+            # Check if this card name is a half of any split card
+            for full_name, full_grp_id in full_cards.items():
+                if ' /// ' in full_name:
+                    parts = full_name.split(' /// ')
+                    if name in [p.strip() for p in parts]:
+                        # This is a half, map it to the full card
+                        grp_map[grp_id] = full_grp_id
+                        break
+
+        return grp_map
+
     def detect_player_seat(self):
         """Detect which seat ID belongs to the local player"""
         player_seat_id = self._detect_seat_from_connect_resp()
@@ -111,7 +141,10 @@ class MTGArenaLogParser:
             if str(grp_id) not in self.card_db:
                 continue
 
-            self.instance_to_grp[instance_id] = grp_id
+            # Normalize split cards: if this is a half, use the full card's grpId
+            normalized_grp_id = self.split_card_grp_map.get(grp_id, grp_id)
+
+            self.instance_to_grp[instance_id] = normalized_grp_id
 
     def process_instance_id_changes(self, line):
         """Process ObjectIdChanged annotations"""
@@ -214,8 +247,11 @@ class MTGArenaLogParser:
 
                     # Only track visible cards
                     if visibility == "Visibility_Public" or owner == self.player_seat_id:
+                        # Normalize split cards
+                        normalized_grp_id = self.split_card_grp_map.get(grp_id, grp_id)
+
                         self.instance_locations[instance_id] = {
-                            'grpId': grp_id,
+                            'grpId': normalized_grp_id,
                             'zone': zone_id,
                             'owner': owner,
                             'visibility': visibility
@@ -224,35 +260,57 @@ class MTGArenaLogParser:
             pass
 
     def count_revealed_cards(self):
-        """Count cards from hand and visible zones"""
+        """Count cards from all tracked zones with unified deduplication logic"""
         player_cards = defaultdict(int)
         opponent_cards = defaultdict(int)
 
-        # Add cards from hand zones
-        for inst_id in self.final_player_hand:
-            if inst_id in self.instance_to_grp:
-                grp_id = self.instance_to_grp[inst_id]
-                player_cards[grp_id] += 1
+        # Relevant zones to count:
+        # Zone 28=Battlefield, 29=Exile
+        # Zone 31=Seat 1's hand, 35=Seat 2's hand
+        # Zone 33=Seat 1's graveyard, 37=Seat 2's graveyard
+        relevant_zones = [28, 29, 31, 33, 35, 37]
 
-        for inst_id in self.final_opponent_hand:
-            if inst_id in self.instance_to_grp:
-                grp_id = self.instance_to_grp[inst_id]
-                opponent_cards[grp_id] += 1
+        # Only count terminal instances (not replaced via ObjectIdChanged)
+        # This filters out cards from mulligan and intermediate zone transitions
+        obsolete_instances = set(self.instance_id_map.keys())
 
-        # Add cards from visible zones: battlefield, graveyard, exile
-        # Zone 28=Battlefield, 29=Exile, 33=Player Graveyard, 37=Opponent Graveyard
+        # Also only count instances that are part of ObjectIdChanged chains
+        # This filters out orphaned split card halves in old zones
+        instances_with_history = set(self.instance_id_map.values())
+
+        # Track physical cards: (grpId, owner, zone) -> count of physical cards
+        zone_cards = defaultdict(set)
+
         for instance_id, location in self.instance_locations.items():
+            # Skip obsolete instances (replaced by newer instance IDs)
+            if instance_id in obsolete_instances:
+                continue
+
+            # Only count instances that are part of ObjectIdChanged chains
+            # This avoids counting orphaned split card halves
+            if instance_id not in instances_with_history:
+                continue
+
             zone = location['zone']
-            if zone not in [28, 29, 33, 37]:
+            if zone not in relevant_zones:
                 continue
 
             grp_id = location['grpId']
             owner = location['owner']
 
+            # Each instance represents a physical card
+            # Track by instance_id to count multiple copies correctly
+            zone_key = (grp_id, owner, zone)
+            zone_cards[zone_key].add(instance_id)
+
+        # Count the number of physical cards for each (grpId, owner, zone)
+        for (grp_id, owner, zone), instance_set in zone_cards.items():
+            num_copies = len(instance_set)
+
             if owner == self.player_seat_id:
-                player_cards[grp_id] += 1
+                player_cards[grp_id] += num_copies
             elif owner == self.opponent_seat_id:
-                opponent_cards[grp_id] += 1
+                opponent_cards[grp_id] += num_copies
 
         return player_cards, opponent_cards
 
@@ -303,13 +361,13 @@ class OutputFormatter:
             card_info = card_db.get(str(grp_id))
             if card_info:
                 name = card_info['name']
-                card_list.append((name, count, grp_id))
+                card_list.append((name, count))
         return sorted(card_list)
 
     @staticmethod
     def print_card_list(card_list):
         """Print a formatted card list"""
-        for i, (name, count, grp_id) in enumerate(card_list, 1):
+        for i, (name, count) in enumerate(card_list, 1):
             if count > 1:
                 print(f"  {i:2d}. {name} (x{count})")
             else:
