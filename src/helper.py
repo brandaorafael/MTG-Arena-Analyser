@@ -2,14 +2,14 @@ class Helper:
     """Helper functions"""
 
     @staticmethod
-    def check_detailed_logging_enabled(log_file):
+    def check_detailed_logging_enabled(log_file: str) -> bool:
         """Check if detailed logging is enabled"""
         with open(log_file, 'r') as f:
-            first_lines = f.read(1000)
+            first_lines: str = f.read(1000)
             return "DETAILED LOGS: DISABLED" not in first_lines
 
     @staticmethod
-    def parse_basic_log(match_id):
+    def parse_basic_log(match_id: str) -> None:
         """Parse basic log information when detailed logging is not enabled"""
         print(f"📖 Parsing logs for match: {match_id[:8]}...")
         print("")

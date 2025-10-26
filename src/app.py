@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import Dict, Any
 
 import typer
 
@@ -13,7 +14,7 @@ from src.helper import Helper
 from src.parsers.match_parser import MatchParser
 
 
-app = typer.Typer()
+app: typer.Typer = typer.Typer()
 
 
 @app.command()
@@ -29,7 +30,7 @@ def parse_match(log_file: str, match_id: str) -> None:
     """
 
     # Load card database
-    card_db = CardDatabase().load_card_database()
+    card_db: Dict[str, Dict[str, Any]] = CardDatabase().load_card_database()
     if card_db:
         print(f"✅ Loaded {len(card_db)} cards from database")
         print("")
@@ -40,7 +41,9 @@ def parse_match(log_file: str, match_id: str) -> None:
         return
 
     # Parse the match
-    parser = MatchParser(log_file, match_id, card_db)
+    parser: MatchParser = MatchParser(log_file, match_id, card_db)
+    player_cards: Dict[int, int]
+    opponent_cards: Dict[int, int]
     player_cards, opponent_cards = parser.parse()
 
     # Display results
