@@ -72,11 +72,6 @@ class Config:
         """Path to MTGA card database directory"""
         return self.get('mtga.card_database_dir')
 
-    @property
-    def card_database_json(self) -> str:
-        """Path to output card database JSON"""
-        return self.get('output.card_database_json')
-
 
 # Singleton instance
 config = Config()

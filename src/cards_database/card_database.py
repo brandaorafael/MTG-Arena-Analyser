@@ -18,7 +18,7 @@ class CardDatabase:
 
     def __init__(self) -> None:
         self.mtga_path: str = os.path.expanduser(config.card_database_dir)
-        self.output_path: str = os.path.expanduser(config.card_database_json)
+        self.output_path: str = os.path.expanduser("./src/cards_database/card_database.json")
 
     def _find_database(self) -> Optional[str]:
         """Find the Raw_CardDatabase file"""
