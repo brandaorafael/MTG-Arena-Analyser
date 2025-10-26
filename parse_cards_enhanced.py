@@ -310,22 +310,25 @@ class MTGArenaLogParser:
         player_cards = defaultdict(int)
         opponent_cards = defaultdict(int)
 
-        # Relevant zones to count:
+        # Relevant zones to count (permanent locations only):
         # Zone 28=Battlefield, 29=Exile
         # Zone 31=Seat 1's hand, 35=Seat 2's hand
         # Zone 33=Seat 1's graveyard, 37=Seat 2's graveyard
+        # Excluded zones:
+        #   Zone 30 (library) - can't distinguish seen vs unseen cards
+        #   Zone 32/34 (revealed/command) - temporary zones, cards pass through
         relevant_zones = [28, 29, 31, 33, 35, 37]
 
         # Only count terminal instances (not replaced via ObjectIdChanged)
         # This filters out cards from mulligan and intermediate zone transitions
         obsolete_instances = set(self.instance_id_map.keys())
 
-        # Also only count instances that are part of ObjectIdChanged chains
-        # This filters out orphaned split card halves in old zones
+        # Instances that are part of ObjectIdChanged chains
         instances_with_history = set(self.instance_id_map.values())
 
-        # Track physical cards: (grpId, owner, zone) -> count of physical cards
-        zone_cards = defaultdict(set)
+        # Build map of each instance to its FINAL location
+        # This ensures we only count each instance once from its last known zone
+        instance_final_location = {}
 
         for instance_id, location in self.instance_locations.items():
             # Skip obsolete instances (replaced by newer instance IDs)
@@ -333,7 +336,7 @@ class MTGArenaLogParser:
                 continue
 
             # Only count instances that are part of ObjectIdChanged chains
-            # This avoids counting orphaned split card halves
+            # This filters out orphaned split card halves and temporary revealed instances
             if instance_id not in instances_with_history:
                 continue
 
@@ -341,11 +344,19 @@ class MTGArenaLogParser:
             if zone not in relevant_zones:
                 continue
 
+            # Track this as the final location for this instance
+            # (will overwrite if seen multiple times, keeping the last one)
+            instance_final_location[instance_id] = location
+
+        # Now count from final locations, deduplicating split cards
+        zone_cards = defaultdict(set)
+
+        for instance_id, location in instance_final_location.items():
             grp_id = location['grpId']
             owner = location['owner']
+            zone = location['zone']
 
-            # Each instance represents a physical card
-            # Track by instance_id to count multiple copies correctly
+            # Track by zone to deduplicate split cards (same grpId, owner, zone)
             zone_key = (grp_id, owner, zone)
             zone_cards[zone_key].add(instance_id)
 
