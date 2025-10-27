@@ -34,13 +34,16 @@ Without detailed logging, the parser cannot extract card information.
 
 Play a match in MTG Arena with detailed logging enabled.
 
-### Step 4: Analyze the Match
+### Step 4: Analyze Matches
 
 ```bash
-./docker-run-parser.sh
+./docker-parse-interactive.sh
 ```
 
-This will automatically find and parse the most recent match.
+This will:
+1. List all matches found in your log file
+2. Let you select which match to analyze
+3. Display the results
 
 > **Note:** On macOS, Docker caches log files. The wrapper script handles this automatically by restarting the container. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for details.
 
@@ -61,9 +64,20 @@ This will automatically find and parse the most recent match.
 
 ```
 MTG Arena Match Log Parser
-================================
+============================================================
 
-Finding most recent match...
+Scanning log file for matches...
+Found 2 matches
+
+#    Start Time           End Time             Opponent
+======================================================================
+1    2025-10-27 01:23:29  2025-10-27 01:27:15  Verity
+2    2025-10-27 01:27:40  In Progress          Empadao
+
+======================================================================
+Select match number (or 'q' to quit) [2]: 2
+
+Selected match vs Empadao
 Match ID: 0fee9a7e-87df-4fa7-bed1-e2d8f639a36e
 
 Loaded 21477 cards from database
@@ -126,21 +140,29 @@ Revealed: 7 unique cards | 11 total cards
 
 ## Advanced Usage
 
-### Parse a Specific Match
+### Interactive Mode (Default)
+
+List all matches and select one interactively:
 
 ```bash
-docker exec mtg-arena-parser python3 src/app.py <match-id>
+# With Docker
+./docker-parse-interactive.sh
+
+# Without Docker
+./parse-interactive.sh
 ```
 
-### Run Without Docker
+### Parse a Specific Match Directly
 
-If you have Python and dependencies installed locally:
+If you know the match ID:
 
 ```bash
-./get-cards-last-match.sh
-```
+# With Docker
+docker exec mtg-arena-parser python3 src/app.py parse-match <log-file> <match-id>
 
-This runs directly on your machine without Docker.
+# Without Docker
+python3 src/app.py parse-match <log-file> <match-id>
+```
 
 ## File Locations
 

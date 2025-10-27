@@ -6,7 +6,7 @@
 Docker on macOS caches mounted log files and does not automatically see new matches written to `Player.log` after the container starts. This is a known limitation of Docker's file system implementation on macOS.
 
 ### Symptoms
-- Running `docker exec mtg-arena-parser ./get-cards-last-match.sh` shows an older match
+- Running `docker exec mtg-arena-parser ./parse-interactive.sh` shows an older match
 - New matches don't appear until Docker is restarted
 
 ### Solutions
@@ -15,7 +15,7 @@ Docker on macOS caches mounted log files and does not automatically see new matc
 Use the provided wrapper script that automatically restarts Docker before parsing:
 
 ```bash
-./run-parser.sh
+./docker-parse-interactive.sh
 ```
 
 This script:
@@ -28,15 +28,15 @@ Restart Docker manually before each parse:
 
 ```bash
 docker restart mtg-arena-parser
-docker exec mtg-arena-parser ./get-cards-last-match.sh
+docker exec mtg-arena-parser ./parse-interactive.sh
 ```
 
 #### Option 3: Run Locally Without Docker
-If you have Python and PyYAML installed locally:
+If you have Python and dependencies installed locally:
 
 ```bash
-pip3 install  # One-time installation
-./get-cards-last-match.sh
+pip3 install -r requirements.txt  # One-time installation
+./parse-interactive.sh
 ```
 
 This avoids Docker entirely and always reads the latest log file.

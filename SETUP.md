@@ -50,23 +50,25 @@ docker compose up -d
 **Recommended method** (restarts Docker to refresh log file cache):
 
 ```bash
-./docker-run-parser.sh
+./docker-parse-interactive.sh
 ```
+
+This will show you a list of all matches and let you select which one to analyze.
 
 **Alternative methods:**
 
 Direct Docker execution (may show old match on macOS due to file caching):
 ```bash
-docker exec mtg-arena-parser ./get-cards-last-match.sh
+docker exec mtg-arena-parser ./parse-interactive.sh
 ```
 
-Run locally without Docker (requires pyyaml installed):
+Run locally without Docker (requires dependencies):
 ```bash
-pip3 install pyyaml  # One-time setup
-./get-cards-last-match.sh
+pip3 install -r requirements.txt  # One-time setup
+./parse-interactive.sh
 ```
 
-> **Note:** On macOS, Docker caches the log file and may not see new matches until the container is restarted. The `run-parser.sh` script handles this automatically. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for details.
+> **Note:** On macOS, Docker caches the log file and may not see new matches until the container is restarted. The `docker-parse-interactive.sh` script handles this automatically. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for details.
 
 ## Configuration Files
 

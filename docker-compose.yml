@@ -8,6 +8,6 @@ services:
       - "${MTGA_LOGS_DIR}:${MTGA_LOGS_DIR}:ro"
       - "${MTGA_CARD_DB_DIR}:${MTGA_CARD_DB_DIR}:ro"
       - "./src:/app/src"
-      - "./get-cards-last-match.sh:/app/get-cards-last-match.sh"
+      - "./parse-interactive.sh:/app/parse-interactive.sh"
       - "./config.yaml:/app/config.yaml:ro"
     container_name: mtg-arena-parser
