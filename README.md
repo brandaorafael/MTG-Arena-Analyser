@@ -69,15 +69,14 @@ The interface remembers your last position, so you can quickly browse multiple m
 
 ```
 MTG Arena Match Log Parser
-============================================================
-
-#    Start Time           End Time             Opponent
-======================================================================
 
 Use arrow keys to navigate, Enter to select, q to quit
 
+======================================================================
+  #    Start Time           End Time             Opponent
+======================================================================
   1    2025-10-27 01:23:29  2025-10-27 01:27:15  Verity
-> 2    2025-10-27 01:27:40  In Progress          Empadao
+> 2    2025-10-27 01:27:40  2025-10-27 01:34:52  Empadao
 
 [Press Enter to view match]
 
