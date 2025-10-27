@@ -9,23 +9,23 @@ PYTHON_CMD=python3
 # Load player log path from config
 PLAYER_LOG=$($PYTHON_CMD -c "import yaml; import os; config = yaml.safe_load(open('$SCRIPT_DIR/config.yaml')); print(config['mtga']['player_log'])")
 
-echo "🔍 MTG Arena Match Log Parser"
+echo "MTG Arena Match Log Parser"
 echo "================================"
 echo ""
 
 # Check if log file exists
 if [ ! -f "$PLAYER_LOG" ]; then
-    echo "❌ Player.log not found at: $PLAYER_LOG"
+    echo "ERROR: Player.log not found at: $PLAYER_LOG"
     echo "Please make sure MTG Arena has been run at least once."
     exit 1
 fi
 
 # Find the most recent match ID
-echo "🎮 Finding most recent match..."
+echo "Finding most recent match..."
 LAST_MATCH=$(grep -o 'matchId [a-f0-9-]\{36\}' "$PLAYER_LOG" | tail -1 | awk '{print $2}')
 
 if [ -z "$LAST_MATCH" ]; then
-    echo "❌ No matches found in log file"
+    echo "ERROR: No matches found in log file"
     exit 1
 fi
 
@@ -37,6 +37,6 @@ MATCH_PARSER="$SCRIPT_DIR/src/app.py"
 if [ -f "$MATCH_PARSER" ]; then
     $PYTHON_CMD "$MATCH_PARSER" parse-match "$PLAYER_LOG" "$LAST_MATCH"
 else
-    echo "❌ Parser not found: $MATCH_PARSER"
+    echo "ERROR: Parser not found: $MATCH_PARSER"
     exit 1
 fi

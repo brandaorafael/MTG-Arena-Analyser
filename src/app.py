@@ -32,7 +32,7 @@ def parse_match(log_file: str, match_id: str) -> None:
     # Load card database
     card_db: Dict[str, CardInfo] = CardDatabase().load_card_database()
     if card_db:
-        print(f"✅ Loaded {len(card_db)} cards from database")
+        print(f"Loaded {len(card_db)} cards from database")
         print("")
 
     # Check if detailed logging is enabled

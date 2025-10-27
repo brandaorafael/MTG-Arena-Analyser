@@ -3,7 +3,7 @@
 # Docker wrapper script to parse the latest MTG Arena match
 # Restarts the Docker container to refresh the log file cache (macOS requirement)
 
-echo "🔄 Restarting Docker container to refresh log file cache..."
+echo "Restarting Docker container to refresh log file cache..."
 docker restart mtg-arena-parser > /dev/null 2>&1
 
 # Wait for container to be ready

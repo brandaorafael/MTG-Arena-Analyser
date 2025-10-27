@@ -95,7 +95,7 @@ class OutputFormatter:
         """Display player's deck information"""
         print("")
         print("=" * 60)
-        print("🃏 YOUR DECK")
+        print("YOUR DECK")
         print("=" * 60)
         print("")
 
@@ -106,7 +106,7 @@ class OutputFormatter:
                 total_cards += 1
             revealed_count: int = sum(player_cards.values())
 
-            print("📦 REVEALED CARDS:")
+            print("REVEALED CARDS:")
 
             if player_cards:
                 type_groups: Dict[str, List[Tuple[str, int]]] = OutputFormatter.format_card_list_by_type(player_cards, card_db)
@@ -116,13 +116,13 @@ class OutputFormatter:
 
             print("")
             unrevealed: int = total_cards - revealed_count
-            print(f"📊 Deck: {total_cards} cards total | {revealed_count} revealed | {unrevealed} unrevealed")
+            print(f"Deck: {total_cards} cards total | {revealed_count} revealed | {unrevealed} unrevealed")
 
         elif player_cards:
             card_list: List[Tuple[str, int]] = OutputFormatter.format_card_list(player_cards, card_db)
             OutputFormatter.print_card_list(card_list)
             print("")
-            print(f"📊 Total: {len(player_cards)} unique cards revealed")
+            print(f"Total: {len(player_cards)} unique cards revealed")
         else:
             print("No cards found")
 
@@ -132,14 +132,14 @@ class OutputFormatter:
         print("")
         print("=" * 60)
         if opponent_name:
-            print(f"🎴 OPPONENT'S DECK ({opponent_name})")
+            print(f"OPPONENT'S DECK ({opponent_name})")
         else:
-            print("🎴 OPPONENT'S DECK")
+            print("OPPONENT'S DECK")
         print("=" * 60)
         print("")
 
         if opponent_cards:
-            print("📦 REVEALED CARDS:")
+            print("REVEALED CARDS:")
 
             type_groups: Dict[str, List[Tuple[str, int]]] = OutputFormatter.format_card_list_by_type(opponent_cards, card_db)
             OutputFormatter.print_grouped_card_list(type_groups)
@@ -149,11 +149,11 @@ class OutputFormatter:
             unique_count: int = len(opponent_cards)
 
             # Show revealed stats without total (opponent's full deck is hidden)
-            print(f"📊 Revealed: {unique_count} unique cards | {revealed_count} total cards")
+            print(f"Revealed: {unique_count} unique cards | {revealed_count} total cards")
 
             if commander:
                 card_name: str = card_db.get(str(commander), {}).get('name', 'Unknown')
-                print(f"👑 Commander detected: {card_name}")
+                print(f"Commander detected: {card_name}")
         else:
             if opponent_deck_size > 0:
                 print(f"No cards revealed (opponent has {opponent_deck_size} cards in deck)")

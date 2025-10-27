@@ -113,22 +113,22 @@ class CardDatabase:
 
     def extract(self) -> bool:
         """Main extraction process"""
-        print("🔍 Finding MTG Arena card database...")
+        print("Finding MTG Arena card database...")
 
         db_path: Optional[str] = self._find_database()
         if not db_path:
-            print("❌ Card database not found!")
+            print("ERROR: Card database not found!")
             print(f"Expected location: {self.mtga_path}")
             return False
 
-        print(f"✅ Found database: {os.path.basename(db_path)}")
-        print("📊 Extracting card data...")
+        print(f"Found database: {os.path.basename(db_path)}")
+        print("Extracting card data...")
 
         cards: Dict[int, CardInfo] = self._extract_cards(db_path)
-        print(f"✅ Extracted {len(cards)} cards")
+        print(f"Extracted {len(cards)} cards")
 
         self._save_to_json(cards)
-        print(f"💾 Saved to: {self.output_path}")
+        print(f"Saved to: {self.output_path}")
 
         self._display_sample(cards)
 

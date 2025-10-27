@@ -40,7 +40,7 @@ class MatchParser:
 
     def parse(self) -> Tuple[Dict[int, int], Dict[int, int]]:
         """Main parsing method"""
-        print(f"📖 Parsing detailed logs for match: {self.match_id[:8]}...")
+        print(f"Parsing detailed logs for match: {self.match_id[:8]}...")
 
         # Detect player seat
         self._detect_player_seat()
@@ -156,7 +156,7 @@ class MatchParser:
                             seat_ids: List[int] = msg.get('systemSeatIds', [])
                             # If systemSeatIds has exactly one seat, that's the local player
                             if seat_ids and len(seat_ids) == 1:
-                                print(f"🎮 You are seat {seat_ids[0]}")
+                                print(f"You are seat {seat_ids[0]}")
                                 return seat_ids[0]
                     except (json.JSONDecodeError, KeyError, TypeError, IndexError):
                         pass

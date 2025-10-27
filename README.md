@@ -2,14 +2,14 @@
 
 Custom-built tools to extract and analyze MTG Arena match data from detailed logs.
 
-## ✨ Features
+## Features
 
 - Shows your revealed cards and opponent's revealed cards
 - Tracks cards across all zones (hand, battlefield, graveyard, exile)
 - Displays deck statistics (revealed vs unrevealed breakdown)
 - Shows opponent's name
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Step 1: Configure and Build
 
@@ -23,7 +23,7 @@ See [SETUP.md](SETUP.md) for detailed setup instructions including:
 **IMPORTANT:** You must enable detailed logging in MTG Arena:
 
 1. Launch MTG Arena
-2. Click the gear icon (⚙️) in the top right
+2. Click the gear icon in the top right
 3. Go to **View Account** (bottom of settings menu)
 4. Enable **Detailed Logs (Plugin Support)**
 5. Restart MTG Arena
@@ -44,7 +44,7 @@ This will automatically find and parse the most recent match.
 
 > **Note:** On macOS, Docker caches log files. The wrapper script handles this automatically by restarting the container. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for details.
 
-## 📊 What the Parser Shows
+## What the Parser Shows
 
 ### Your Deck
 - All cards you've revealed (in hand or played)
@@ -60,22 +60,22 @@ This will automatically find and parse the most recent match.
 ### Example Output
 
 ```
-🔍 MTG Arena Match Log Parser
+MTG Arena Match Log Parser
 ================================
 
-🎮 Finding most recent match...
+Finding most recent match...
 Match ID: 0fee9a7e-87df-4fa7-bed1-e2d8f639a36e
 
-✅ Loaded 21477 cards from database
+Loaded 21477 cards from database
 
-📖 Parsing detailed logs for match: 0fee9a7e...
-🎮 You are seat 1
+Parsing detailed logs for match: 0fee9a7e...
+You are seat 1
 
 ============================================================
-🃏 YOUR DECK
+YOUR DECK
 ============================================================
 
-📦 REVEALED CARDS:
+REVEALED CARDS:
 
   Creatures (7):
     • Ajani's Pridemate
@@ -96,13 +96,13 @@ Match ID: 0fee9a7e-87df-4fa7-bed1-e2d8f639a36e
     • Starting Town
     • Wind-Scarred Crag
 
-📊 Deck: 60 cards total | 15 revealed | 45 unrevealed
+Deck: 60 cards total | 15 revealed | 45 unrevealed
 
 ============================================================
-🎴 OPPONENT'S DECK (Empadao)
+OPPONENT'S DECK (Empadao)
 ============================================================
 
-📦 REVEALED CARDS:
+REVEALED CARDS:
 
   Creatures (4):
     • Ajani's Pridemate
@@ -119,12 +119,12 @@ Match ID: 0fee9a7e-87df-4fa7-bed1-e2d8f639a36e
   Lands (4):
     • Plains (x4)
 
-📊 Revealed: 7 unique cards | 11 total cards
+Revealed: 7 unique cards | 11 total cards
 
 ============================================================
 ```
 
-## 🎯 Advanced Usage
+## Advanced Usage
 
 ### Parse a Specific Match
 
@@ -142,7 +142,7 @@ If you have Python and dependencies installed locally:
 
 This runs directly on your machine without Docker.
 
-## 📍 File Locations
+## File Locations
 
 ### MTGA Logs and Data
 
@@ -173,7 +173,7 @@ This runs directly on your machine without Docker.
 ./config.yaml
 ```
 
-## 🛠 How It Works
+## How It Works
 
 ### Parsing Process
 
@@ -206,7 +206,7 @@ The database contains:
 - `Localizations_enUS` table with card names
 - `Abilities` and `Enums` tables for game mechanics
 
-## 🚨 Important Notes
+## Important Notes
 
 ### Requirements
 
@@ -225,10 +225,10 @@ The database contains:
 - Cannot see opponent's unrevealed cards in library
 - Opponent's hand cards are hidden unless revealed through gameplay
 
-## 📜 License
+## License
 
 Free to use and modify for personal use. No warranty provided.
 
-## 🤝 Contributing
+## Contributing
 
 This is a personal project, but feel free to fork and enhance!
