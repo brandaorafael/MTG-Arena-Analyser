@@ -4,10 +4,11 @@ Custom-built tools to extract and analyze MTG Arena match data from detailed log
 
 ## Features
 
+- Interactive arrow-key navigation for browsing matches
 - Shows your revealed cards and opponent's revealed cards
 - Tracks cards across all zones (hand, battlefield, graveyard, exile)
 - Displays deck statistics (revealed vs unrevealed breakdown)
-- Shows opponent's name
+- Shows opponent's name and match timestamps
 
 ## Quick Start
 
@@ -42,8 +43,12 @@ Play a match in MTG Arena with detailed logging enabled.
 
 This will:
 1. List all matches found in your log file
-2. Let you select which match to analyze
-3. Display the results
+2. Use arrow keys (↑/↓) to navigate between matches
+3. Press Enter to view match details
+4. Press Enter again to return to the menu
+5. Press 'q' or Esc to quit
+
+The interface remembers your last position, so you can quickly browse multiple matches.
 
 > **Note:** On macOS, Docker caches log files. The wrapper script handles this automatically by restarting the container. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for details.
 
@@ -66,21 +71,18 @@ This will:
 MTG Arena Match Log Parser
 ============================================================
 
-Scanning log file for matches...
-Found 2 matches
-
 #    Start Time           End Time             Opponent
 ======================================================================
-1    2025-10-27 01:23:29  2025-10-27 01:27:15  Verity
-2    2025-10-27 01:27:40  In Progress          Empadao
 
-======================================================================
-Select match number (or 'q' to quit) [2]: 2
+Use arrow keys to navigate, Enter to select, q to quit
+
+  1    2025-10-27 01:23:29  2025-10-27 01:27:15  Verity
+> 2    2025-10-27 01:27:40  In Progress          Empadao
+
+[Press Enter to view match]
 
 Selected match vs Empadao
 Match ID: 0fee9a7e-87df-4fa7-bed1-e2d8f639a36e
-
-Loaded 21477 cards from database
 
 Parsing detailed logs for match: 0fee9a7e...
 You are seat 1

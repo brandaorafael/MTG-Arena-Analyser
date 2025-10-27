@@ -10,5 +10,5 @@ docker restart mtg-arena-parser > /dev/null 2>&1
 # Wait for container to be ready
 sleep 2
 
-# Run the parser in interactive mode
-docker exec -i mtg-arena-parser ./parse-interactive.sh
+# Run the parser in interactive mode (with TTY for arrow key navigation)
+docker exec -it mtg-arena-parser ./parse-interactive.sh

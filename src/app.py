@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict
 
 import typer
 
@@ -8,6 +8,7 @@ from src.formatter.output_formatter import OutputFormatter
 from src.helper import Helper
 from src.parsers.match_parser import MatchParser
 from src.config import Config
+from src.ui.interactive_ui import InteractiveUI
 
 
 app: typer.Typer = typer.Typer()
@@ -48,11 +49,20 @@ def interactive() -> None:
     config = Config()
     log_file = config.player_log_path
 
+    # Load card database once at startup
     print("MTG Arena Match Log Parser")
     print("=" * 60)
     print("")
+    print("Loading card database...")
+    card_db: Dict[str, CardInfo] = CardDatabase().load_card_database()
+    if not card_db:
+        print("ERROR: Failed to load card database")
+        return
 
-    # Get all match IDs with metadata
+    print(f"Loaded {len(card_db)} cards from database")
+    print("")
+
+    # Get all matches once
     print("Scanning log file for matches...")
     matches = Helper.get_all_match_ids(log_file)
 
@@ -62,50 +72,11 @@ def interactive() -> None:
 
     print(f"Found {len(matches)} matches")
     print("")
+    input("Press Enter to continue...")
 
-    # Display matches with better formatting
-    print(f"{'#':<4} {'Start Time':<20} {'End Time':<20} {'Opponent':<20}")
-    print("=" * 70)
-
-    for i, match in enumerate(matches, 1):
-        start = match.get('start_time') or 'Unknown'
-        end = match.get('end_time') or 'In Progress'
-        opponent = match.get('opponent_name') or 'Unknown'
-        print(f"{i:<4} {start:<20} {end:<20} {opponent:<20}")
-
-    print("")
-    print("=" * 70)
-
-    # Get user selection
-    while True:
-        try:
-            selection = input(f"Select match number (or 'q' to quit) [{len(matches)}]: ").strip()
-
-            # Default to last match if empty
-            if not selection:
-                selection = str(len(matches))
-
-            if selection.lower() == 'q':
-                print("Exiting...")
-                return
-
-            match_num = int(selection)
-            if 1 <= match_num <= len(matches):
-                selected_match = matches[match_num - 1]
-                match_id = selected_match['match_id']
-                print("")
-                print(f"Selected match vs {selected_match.get('opponent_name', 'Unknown')}")
-                print(f"Match ID: {match_id}")
-                print("")
-                parse_match_by_id(log_file, match_id)
-                return
-            else:
-                print(f"Please enter a number between 1 and {len(matches)}")
-        except ValueError:
-            print("Invalid input. Please enter a number or 'q' to quit")
-        except (EOFError, KeyboardInterrupt):
-            print("\nExiting...")
-            return
+    # Initialize and run the interactive UI
+    ui = InteractiveUI(log_file, matches, card_db)
+    ui.run()
 
 
 @app.command()
