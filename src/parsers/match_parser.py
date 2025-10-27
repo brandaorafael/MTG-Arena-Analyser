@@ -38,17 +38,9 @@ class MatchParser:
         # Build split card normalization map
         self.split_card_grp_map: Dict[int, int] = self._build_split_card_map()
 
-    def parse(self) -> Tuple[Dict[int, int], Dict[int, int]]:
-        """Main parsing method"""
-        print(f"Parsing detailed logs for match: {self.match_id[:8]}...")
-
-        # Detect player seat
-        self._detect_player_seat()
-
-        # Extract opponent name
-        self._extract_opponent_name()
-
-        # Parse log file
+    def _read_match_lines(self) -> List[str]:
+        """Read all lines belonging to this match (single file read)"""
+        match_lines: List[str] = []
         with open(self.log_path, 'r', encoding='utf-8', errors='ignore') as f:
             in_match: bool = False
 
@@ -63,14 +55,33 @@ class MatchParser:
                 if 'matchId' in line and self.match_id not in line:
                     break
 
-                # Process each line
-                self._build_instance_mappings(line)
-                self._process_instance_id_changes(line)
-                self._extract_player_deck(line)
-                self._extract_opponent_deck_size(line)
-                self._extract_commanders(line)
-                self._extract_hand_zones(line)
-                self._track_instance_locations(line)
+                match_lines.append(line)
+
+        return match_lines
+
+    def parse(self) -> Tuple[Dict[int, int], Dict[int, int]]:
+        """Main parsing method"""
+        print(f"Parsing detailed logs for match: {self.match_id[:8]}...")
+
+        # Read file once and cache lines in memory (single I/O operation)
+        match_lines: List[str] = self._read_match_lines()
+
+        # Detect player seat
+        self._detect_player_seat(match_lines)
+
+        # Extract opponent name
+        self._extract_opponent_name(match_lines)
+
+        # Parse all lines (now from memory, not disk)
+        for line in match_lines:
+            # Process each line
+            self._build_instance_mappings(line)
+            self._process_instance_id_changes(line)
+            self._extract_player_deck(line)
+            self._extract_opponent_deck_size(line)
+            self._extract_commanders(line)
+            self._extract_hand_zones(line)
+            self._track_instance_locations(line)
 
         # Count revealed cards
         player_cards, opponent_cards = self._count_revealed_cards()
@@ -123,12 +134,12 @@ class MatchParser:
 
         return grp_map
 
-    def _detect_player_seat(self) -> None:
+    def _detect_player_seat(self, match_lines: List[str]) -> None:
         """Detect which seat ID belongs to the local player"""
-        player_seat_id: Optional[int] = self._detect_seat_from_connect_resp()
+        player_seat_id: Optional[int] = self._detect_seat_from_connect_resp(match_lines)
 
         if player_seat_id is None:
-            player_seat_id = self._detect_seat_from_reserved_players()
+            player_seat_id = self._detect_seat_from_reserved_players(match_lines)
 
         if player_seat_id is None:
             print("⚠️  Could not determine player seat ID, assuming seat 1")
@@ -137,79 +148,67 @@ class MatchParser:
         self.player_seat_id = player_seat_id
         self.opponent_seat_id = 2 if player_seat_id == 1 else 1
 
-    def _detect_seat_from_connect_resp(self) -> Optional[int]:
+    def _detect_seat_from_connect_resp(self, match_lines: List[str]) -> Optional[int]:
         """Detect seat from messages with single systemSeatIds (sent only to local player)"""
-        with open(self.log_path, 'r', encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                if self.match_id not in line:
-                    continue
+        for line in match_lines:
+            # Look for any message with systemSeatIds containing a single seat
+            # These messages are only sent to the local player
+            if '"systemSeatIds"' in line and '"greToClientEvent"' in line:
+                try:
+                    data: Dict[str, Any] = json.loads(line)
+                    gre_event: Dict[str, Any] = data.get('greToClientEvent', {})
+                    messages: List[Dict[str, Any]] = gre_event.get('greToClientMessages', [])
 
-                # Look for any message with systemSeatIds containing a single seat
-                # These messages are only sent to the local player
-                if '"systemSeatIds"' in line and '"greToClientEvent"' in line:
-                    try:
-                        data: Dict[str, Any] = json.loads(line)
-                        gre_event: Dict[str, Any] = data.get('greToClientEvent', {})
-                        messages: List[Dict[str, Any]] = gre_event.get('greToClientMessages', [])
-
-                        for msg in messages:
-                            seat_ids: List[int] = msg.get('systemSeatIds', [])
-                            # If systemSeatIds has exactly one seat, that's the local player
-                            if seat_ids and len(seat_ids) == 1:
-                                print(f"You are seat {seat_ids[0]}")
-                                return seat_ids[0]
-                    except (json.JSONDecodeError, KeyError, TypeError, IndexError):
-                        pass
+                    for msg in messages:
+                        seat_ids: List[int] = msg.get('systemSeatIds', [])
+                        # If systemSeatIds has exactly one seat, that's the local player
+                        if seat_ids and len(seat_ids) == 1:
+                            print(f"You are seat {seat_ids[0]}")
+                            return seat_ids[0]
+                except (json.JSONDecodeError, KeyError, TypeError, IndexError):
+                    pass
         return None
 
-    def _detect_seat_from_reserved_players(self) -> Optional[int]:
+    def _detect_seat_from_reserved_players(self, match_lines: List[str]) -> Optional[int]:
         """Fallback: detect seat from reservedPlayers list"""
-        with open(self.log_path, 'r', encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                if self.match_id not in line:
-                    continue
+        for line in match_lines:
+            if '"reservedPlayers"' in line:
+                try:
+                    data: Dict[str, Any] = json.loads(line)
+                    game_room_event: Dict[str, Any] = data.get('matchGameRoomStateChangedEvent', {})
+                    game_room_info: Dict[str, Any] = game_room_event.get('gameRoomInfo', {})
+                    game_room_config: Dict[str, Any] = game_room_info.get('gameRoomConfig', {})
+                    reserved_players: List[Dict[str, Any]] = game_room_config.get('reservedPlayers', [])
 
-                if '"reservedPlayers"' in line:
-                    try:
-                        data: Dict[str, Any] = json.loads(line)
-                        game_room_event: Dict[str, Any] = data.get('matchGameRoomStateChangedEvent', {})
-                        game_room_info: Dict[str, Any] = game_room_event.get('gameRoomInfo', {})
-                        game_room_config: Dict[str, Any] = game_room_info.get('gameRoomConfig', {})
-                        reserved_players: List[Dict[str, Any]] = game_room_config.get('reservedPlayers', [])
-
-                        for player in reserved_players:
-                            seat_id: Optional[int] = player.get('systemSeatId')
-                            player_name: str = player.get('playerName', 'Unknown')
-                            print(f"⚠️  Auto-detected seat {seat_id} (player: {player_name})")
-                            print(f"⚠️  If this is incorrect, the card lists will be swapped")
-                            return seat_id
-                    except (json.JSONDecodeError, KeyError, TypeError):
-                        pass
+                    for player in reserved_players:
+                        seat_id: Optional[int] = player.get('systemSeatId')
+                        player_name: str = player.get('playerName', 'Unknown')
+                        print(f"⚠️  Auto-detected seat {seat_id} (player: {player_name})")
+                        print(f"⚠️  If this is incorrect, the card lists will be swapped")
+                        return seat_id
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
         return None
 
-    def _extract_opponent_name(self) -> None:
+    def _extract_opponent_name(self, match_lines: List[str]) -> None:
         """Extract opponent's name from reservedPlayers"""
-        with open(self.log_path, 'r', encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                if self.match_id not in line:
-                    continue
+        for line in match_lines:
+            if '"reservedPlayers"' in line:
+                try:
+                    data: Dict[str, Any] = json.loads(line)
+                    game_room_event: Dict[str, Any] = data.get('matchGameRoomStateChangedEvent', {})
+                    game_room_info: Dict[str, Any] = game_room_event.get('gameRoomInfo', {})
+                    game_room_config: Dict[str, Any] = game_room_info.get('gameRoomConfig', {})
+                    reserved_players: List[Dict[str, Any]] = game_room_config.get('reservedPlayers', [])
 
-                if '"reservedPlayers"' in line:
-                    try:
-                        data: Dict[str, Any] = json.loads(line)
-                        game_room_event: Dict[str, Any] = data.get('matchGameRoomStateChangedEvent', {})
-                        game_room_info: Dict[str, Any] = game_room_event.get('gameRoomInfo', {})
-                        game_room_config: Dict[str, Any] = game_room_info.get('gameRoomConfig', {})
-                        reserved_players: List[Dict[str, Any]] = game_room_config.get('reservedPlayers', [])
-
-                        for player in reserved_players:
-                            seat_id: Optional[int] = player.get('systemSeatId')
-                            player_name: str = player.get('playerName', 'Unknown')
-                            if seat_id == self.opponent_seat_id:
-                                self.opponent_name = player_name
-                                return
-                    except (json.JSONDecodeError, KeyError, TypeError):
-                        pass
+                    for player in reserved_players:
+                        seat_id: Optional[int] = player.get('systemSeatId')
+                        player_name: str = player.get('playerName', 'Unknown')
+                        if seat_id == self.opponent_seat_id:
+                            self.opponent_name = player_name
+                            return
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
 
     def _build_instance_mappings(self, line: str) -> None:
         """Build instance ID to grpId mappings from a log line"""
@@ -337,16 +336,16 @@ class MatchParser:
             elif owner == self.opponent_seat_id:
                 self.final_opponent_hand = instance_ids
 
-    def find_game_objects(self, obj: Union[Dict[str, Any], List[Any]]) -> Iterator[List[Dict[str, Any]]]:
+    def _find_game_objects(self, obj: Union[Dict[str, Any], List[Any]]) -> Iterator[List[Dict[str, Any]]]:
         """Recursively find all gameObjects arrays in JSON structure"""
         if isinstance(obj, dict):
             if 'gameObjects' in obj and isinstance(obj['gameObjects'], list):
                 yield obj['gameObjects']
             for value in obj.values():
-                yield from self.find_game_objects(value)
+                yield from self._find_game_objects(value)
         elif isinstance(obj, list):
             for item in obj:
-                yield from self.find_game_objects(item)
+                yield from self._find_game_objects(item)
 
     def _track_instance_locations(self, line: str) -> None:
         """Track current location of card instances"""
@@ -356,7 +355,7 @@ class MatchParser:
         try:
             data: Dict[str, Any] = json.loads(line)
 
-            for game_objects_list in self.find_game_objects(data):
+            for game_objects_list in self._find_game_objects(data):
                 for obj in game_objects_list:
                     if not isinstance(obj, dict):
                         continue
