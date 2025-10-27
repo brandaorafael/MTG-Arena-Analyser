@@ -53,13 +53,12 @@ class InteractiveUI:
 
         # Show header
         print("MTG Arena Match Log Parser")
-        print("=" * 60)
-        print("")
-        print(f"{'#':<4} {'Start Time':<20} {'End Time':<20} {'Opponent':<20}")
-        print("=" * 70)
         print("")
         print("Use arrow keys to navigate, Enter to select, q to quit")
         print("")
+        print("=" * 70)
+        print(f"  {'#':<4} {'Start Time':<20} {'End Time':<20} {'Opponent':<20}")
+        print("=" * 70)
 
         # Create interactive menu
         terminal_menu = TerminalMenu(
