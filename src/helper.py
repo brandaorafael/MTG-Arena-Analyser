@@ -55,8 +55,8 @@ class Helper:
                                 if not matches[match_id]['start_time']:
                                     matches[match_id]['start_time'] = time_str
 
-                                # Update end time (will keep updating until match ends)
-                                if event.get('stateType') == 'MatchGameRoomStateType_MatchCompleted':
+                                # Update end time when match completes
+                                if game_room.get('stateType') == 'MatchGameRoomStateType_MatchCompleted':
                                     matches[match_id]['end_time'] = time_str
 
                             # Extract opponent name
