@@ -4,32 +4,19 @@ Custom-built tools to extract and analyze MTG Arena match data from detailed log
 
 ## ✨ Features
 
-- **Automatic player seat detection** - Works for any player without hardcoded usernames
-- **Complete deck tracking** - Shows both your revealed cards and opponent's revealed cards
-- **Multi-zone tracking** - Tracks cards in hand, battlefield, graveyard, and exile
-- **Accurate card counts** - Correctly counts duplicate cards
-- **Deck statistics** - Shows revealed vs unrevealed card breakdown
-- **Real-time monitoring** - Optional live match tracking
-
-## 📁 Files
-
-- **parse-mtga-logs.sh** - Main parser wrapper (finds most recent match and parses it)
-- **parse_cards_enhanced.py** - Enhanced parser with full game state tracking
-- **extract_card_database.py** - Extracts MTGA's card database to JSON
-- **monitor_match.py** - Real-time match monitor (shows cards as they're played)
-- **parse_cards.py** - Legacy parser (basic functionality)
-- **card_database.json** - 21,477 cards extracted from MTGA's SQLite database
+- Shows your revealed cards and opponent's revealed cards
+- Tracks cards across all zones (hand, battlefield, graveyard, exile)
+- Displays deck statistics (revealed vs unrevealed breakdown)
+- Shows opponent's name
 
 ## 🚀 Quick Start
 
-### Step 1: Extract Card Database (One-time setup)
+### Step 1: Configure and Build
 
-```bash
-cd ~/Projects/MTGArena
-./extract_card_database.py
-```
-
-This creates `card_database.json` with all MTG Arena cards.
+See [SETUP.md](SETUP.md) for detailed setup instructions including:
+- Creating your `config.yaml`
+- Building the Docker container
+- Running the parser
 
 ### Step 2: Enable Detailed Logging
 
@@ -50,23 +37,25 @@ Play a match in MTG Arena with detailed logging enabled.
 ### Step 4: Analyze the Match
 
 ```bash
-./parse-mtga-logs.sh
+./docker-run-parser.sh
 ```
 
 This will automatically find and parse the most recent match.
+
+> **Note:** On macOS, Docker caches log files. The wrapper script handles this automatically by restarting the container. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for details.
 
 ## 📊 What the Parser Shows
 
 ### Your Deck
 - All cards you've revealed (in hand or played)
-- Accurate card counts
+- Cards grouped by type (Creatures, Instants, Sorceries, etc.)
 - Full deck size and revealed/unrevealed breakdown
 
 ### Opponent's Deck
+- Opponent's name
 - All cards opponent has revealed
-- Cards from battlefield, graveyard, and exile
-- Cards they've played or discarded
-- Full deck size and revealed/unrevealed breakdown
+- Cards grouped by type
+- Total unique cards and total revealed cards count
 
 ### Example Output
 
@@ -75,12 +64,12 @@ This will automatically find and parse the most recent match.
 ================================
 
 🎮 Finding most recent match...
-Match ID: f757d013-ca82-4035-bde0-3cc64a40017e
+Match ID: 0fee9a7e-87df-4fa7-bed1-e2d8f639a36e
 
 ✅ Loaded 21477 cards from database
 
-📖 Parsing detailed logs for match: f757d013...
-🎮 You are seat 2
+📖 Parsing detailed logs for match: 0fee9a7e...
+🎮 You are seat 1
 
 ============================================================
 🃏 YOUR DECK
@@ -88,32 +77,51 @@ Match ID: f757d013-ca82-4035-bde0-3cc64a40017e
 
 📦 REVEALED CARDS:
 
-   1. Ajani's Pridemate
-   2. Essence Channeler (x2)
-   3. Haliya, Guided by Light
-   4. Hinterland Sanctifier
-   5. Mountain
-   6. Waystone's Guidance
-   7. Wind-Scarred Crag (x3)
+  Creatures (7):
+    • Ajani's Pridemate
+    • Essence Channeler (x2)
+    • Hinterland Sanctifier
+    • Thunderbond Vanguard
+    • Voice of Victory (x2)
 
-📊 Deck: 60 cards total | 10 revealed | 50 unrevealed
+  Sorceries (1):
+    • Swiftspear's Teachings
+
+  Enchantments (1):
+    • Waystone's Guidance
+
+  Lands (6):
+    • Clifftop Retreat
+    • Plains (x3)
+    • Starting Town
+    • Wind-Scarred Crag
+
+📊 Deck: 60 cards total | 15 revealed | 45 unrevealed
 
 ============================================================
-🎴 OPPONENT'S DECK
+🎴 OPPONENT'S DECK (Empadao)
 ============================================================
 
 📦 REVEALED CARDS:
 
-   1. A-Cori-Steel Cutter (x2)
-   2. Into the Flood Maw
-   3. Island
-   4. Multiversal Passage
-   5. Opt (x2)
-   6. Riverpyre Verge (x2)
-   7. Stormchaser's Talent
-   8. Wild Ride
+  Creatures (4):
+    • Ajani's Pridemate
+    • Exemplar of Light
+    • Leonin Vanguard
+    • Sun-Blessed Healer
 
-📊 Deck: 60 cards total | 11 revealed | 49 unrevealed
+  Sorceries (1):
+    • Exorcise
+
+  Enchantments (2):
+    • Authority of the Consuls (x2)
+
+  Lands (4):
+    • Plains (x4)
+
+📊 Revealed: 7 unique cards | 11 total cards
+
+============================================================
 ```
 
 ## 🎯 Advanced Usage
@@ -121,135 +129,91 @@ Match ID: f757d013-ca82-4035-bde0-3cc64a40017e
 ### Parse a Specific Match
 
 ```bash
-python3 parse_cards_enhanced.py /path/to/Player.log <match-id>
+docker exec mtg-arena-parser python3 src/app.py <match-id>
 ```
 
-### Real-Time Monitor
+### Run Without Docker
 
-Monitor matches as they happen:
+If you have Python and dependencies installed locally:
 
 ```bash
-./monitor_match.py
+./get-cards-last-match.sh
 ```
 
-This shows cards in real-time as they're played during the match.
+This runs directly on your machine without Docker.
 
-## 🗄️ Card Database
+## 📍 File Locations
 
-The `card_database.json` contains:
-- **21,477 cards** from MTG Arena
-- Card IDs (grpId), names, expansions, and collector numbers
-- Extracted directly from MTGA's SQLite database
+### MTGA Logs and Data
 
-Location: `~/Library/Application Support/com.wizards.mtga/Downloads/Raw/Raw_CardDatabase_*.mtga`
-
-## 📍 Log File Locations
-
-**Player Log:**
+**Player Log** (main log file parsed):
 ```
 ~/Library/Logs/Wizards Of The Coast/MTGA/Player.log
 ```
 
-**MTGA Card Database:**
+**Card Database** (SQLite database with 21,477 cards):
 ```
 ~/Library/Application Support/com.wizards.mtga/Downloads/Raw/Raw_CardDatabase_*.mtga
 ```
 
-**Match History Logs:**
+**Match History** (optional):
 ```
 ~/Library/Application Support/com.wizards.mtga/Logs/Logs/UTC_Log - *.log
 ```
 
-## 🛠 Technical Details
+### Project Files
 
-### How It Works
+**Card Database JSON** (extracted from SQLite):
+```
+./src/cards_database/card_database.json
+```
 
-1. **Automatic Seat Detection**: Uses `GREMessageType_ConnectResp` to identify which seat is the local player
+**Configuration**:
+```
+./config.yaml
+```
+
+## 🛠 How It Works
+
+### Parsing Process
+
+1. **Seat Detection**: Uses `GREMessageType_ConnectResp` to identify the local player's seat
 2. **Instance Tracking**: Tracks all card instances and their grpId mappings
-3. **Location Tracking**: Monitors cards as they move between zones (hand, battlefield, graveyard, exile)
-4. **Zone Parsing**: Uses explicit zone lists for hand contents (most reliable)
-5. **JSON Parsing**: Properly handles deeply nested game objects with arrays/abilities
+3. **Location Tracking**: Monitors cards as they move between zones
+4. **Zone Parsing**: Uses explicit zone lists for authoritative hand contents
+5. **Card Counting**: Only counts cards in their final location, filtering out mulligan artifacts
 
-### Zones Tracked
+### Zone IDs
 
-- **Zone 28**: Battlefield (public)
-- **Zone 29**: Exile (public)
-- **Zone 31**: Seat 1's hand (private for seat 1, hidden for seat 2)
-- **Zone 33**: Seat 1's graveyard (public)
-- **Zone 35**: Seat 2's hand (private for seat 2, hidden for seat 1)
-- **Zone 37**: Seat 2's graveyard (public)
+| Zone | Name | Visibility |
+|------|------|------------|
+| 28 | Battlefield | Public |
+| 29 | Exile | Public |
+| 31 | Seat 1's hand | Private to Seat 1 |
+| 33 | Seat 1's graveyard | Public |
+| 35 | Seat 2's hand | Private to Seat 2 |
+| 37 | Seat 2's graveyard | Public |
 
-### Card Database Structure
+### Card Database
 
-The MTGA card database is a SQLite 3 database with tables:
-- `Cards` - All card data (grpId, titleId, rarity, types, etc.)
-- `Localizations_enUS` - English card names and text
-- `Abilities` - Card ability definitions
-- `Enums` - Game enumerations
-
-### Log Format (Detailed Logging)
-
-```json
-{
-  "greToClientEvent": {
-    "greToClientMessages": [
-      {
-        "type": "GREMessageType_GameStateMessage",
-        "gameStateMessage": {
-          "gameObjects": [
-            {
-              "instanceId": 312,
-              "grpId": 91548,
-              "ownerSeatId": 2,
-              "zoneId": 28,
-              "visibility": "Visibility_Public"
-            }
-          ]
-        }
-      }
-    ]
-  }
-}
+The parser uses MTGA's SQLite database located at:
+```
+~/Library/Application Support/com.wizards.mtga/Downloads/Raw/Raw_CardDatabase_*.mtga
 ```
 
-The `grpId` maps to the card database, `ownerSeatId` identifies the owner, and `zoneId` indicates location.
-
-## 🔧 Key Implementation Details
-
-### Accurate Card Counting
-
-The parser tracks the **current location** of each card instance:
-- Uses explicit `objectInstanceIds` arrays from zone messages (authoritative for hand contents)
-- Tracks `gameObjects` for battlefield, graveyard, and exile
-- Only counts cards in their **final** location (not historical appearances)
-- Resolves instance ID changes via `ObjectIdChanged` annotations
-
-### Instance ID Mapping
-
-Cards can change instance IDs as they move between zones:
-```
-Original ID: 284 -> New ID: 289 (when moving from hand to battlefield)
-```
-
-The parser tracks these changes and maps them correctly.
-
-### Seat Assignment
-
-Player seats are **not fixed** - they vary per match:
-- Sometimes player is seat 1, sometimes seat 2
-- Parser automatically detects correct assignment
-- Works for any player without hardcoded usernames
+The database contains:
+- `Cards` table with grpId, rarity, types, etc.
+- `Localizations_enUS` table with card names
+- `Abilities` and `Enums` tables for game mechanics
 
 ## 🚨 Important Notes
 
-### Detailed Logging Required
+### Requirements
 
-**The parser REQUIRES detailed logging to be enabled** in MTG Arena. Without it:
-- No grpId data in logs
-- Cannot identify cards
-- Only basic match flow available
+- **Detailed logging MUST be enabled** in MTG Arena (Settings → View Account → Detailed Logs)
+- Without detailed logging, the parser cannot extract card information
 
-### Privacy Considerations
+### Privacy
 
 - All parsing is done locally on your machine
 - No data is sent to external servers
@@ -257,37 +221,9 @@ Player seats are **not fixed** - they vary per match:
 
 ### Limitations
 
-- Only tracks cards that have been revealed (played, discarded, or drawn into hand)
+- Only tracks revealed cards (played, discarded, or in hand)
 - Cannot see opponent's unrevealed cards in library
-- Opponent's hand cards are hidden unless they've been revealed
-
-## 📝 Example Usage
-
-```bash
-# Extract card database (one time)
-./extract_card_database.py
-
-# Enable detailed logging in MTGA settings (one time)
-
-# Play a match
-
-# Parse the most recent match
-./parse-mtga-logs.sh
-
-# Or monitor live
-./monitor_match.py
-```
-
-## 🔬 Research Findings
-
-1. **MTGA uses SQLite** for its card database - fully accessible
-2. **Logs use two ID systems:**
-   - `grpId`: Permanent card ID (maps to database)
-   - `instanceId`: Per-match runtime ID
-3. **Instance IDs can change** during a match via `ObjectIdChanged` annotations
-4. **Seat assignment varies** - must be detected dynamically per match
-5. **Zone lists are authoritative** for hand contents
-6. **Game objects can be deeply nested** - requires proper JSON parsing, not regex
+- Opponent's hand cards are hidden unless revealed through gameplay
 
 ## 📜 License
 

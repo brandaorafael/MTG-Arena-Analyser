@@ -8,9 +8,10 @@ import sqlite3
 import json
 import os
 import glob
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Union
 
 from src.config import config
+from src.type_definitions import CardInfo
 
 
 class CardDatabase:
@@ -29,7 +30,7 @@ class CardDatabase:
             return files[0]
         return None
 
-    def _decode_types(self, types_value: Any) -> List[str]:
+    def _decode_types(self, types_value: Optional[Union[int, str]]) -> List[str]:
         """Decode card types from comma-separated type IDs"""
         # MTG card type IDs
         type_map: Dict[int, str] = {
@@ -64,7 +65,7 @@ class CardDatabase:
 
         return types
 
-    def _extract_cards(self, db_path: str) -> Dict[int, Dict[str, Any]]:
+    def _extract_cards(self, db_path: str) -> Dict[int, CardInfo]:
         """Extract all cards with their names and types from the database"""
         conn: sqlite3.Connection = sqlite3.connect(db_path)
         cursor: sqlite3.Cursor = conn.cursor()
@@ -78,7 +79,7 @@ class CardDatabase:
         """
 
         cursor.execute(query)
-        cards: Dict[int, Dict[str, Any]] = {}
+        cards: Dict[int, CardInfo] = {}
 
         for row in cursor.fetchall():
             grp_id, name, expansion, collector_num, types_value = row
@@ -96,17 +97,17 @@ class CardDatabase:
         conn.close()
         return cards
 
-    def _save_to_json(self, cards: Dict[int, Dict[str, Any]]) -> None:
+    def _save_to_json(self, cards: Dict[int, CardInfo]) -> None:
         """Save card data to a JSON file"""
         with open(self.output_path, 'w') as f:
             json.dump(cards, f, indent=2)
 
-    def _display_sample(self, cards: Dict[int, Dict[str, Any]], count: int = 5) -> None:
+    def _display_sample(self, cards: Dict[int, CardInfo], count: int = 5) -> None:
         """Display a sample of extracted cards"""
         print("")
         print("Sample cards:")
         for grp_id in list(cards.keys())[:count]:
-            card: Dict[str, Any] = cards[grp_id]
+            card: CardInfo = cards[grp_id]
             types_str: str = ", ".join(card['types']) if card['types'] else "Unknown"
             print(f"  {grp_id}: {card['name']} ({types_str})")
 
@@ -123,7 +124,7 @@ class CardDatabase:
         print(f"✅ Found database: {os.path.basename(db_path)}")
         print("📊 Extracting card data...")
 
-        cards: Dict[int, Dict[str, Any]] = self._extract_cards(db_path)
+        cards: Dict[int, CardInfo] = self._extract_cards(db_path)
         print(f"✅ Extracted {len(cards)} cards")
 
         self._save_to_json(cards)
@@ -133,7 +134,7 @@ class CardDatabase:
 
         return True
 
-    def load_card_database(self) -> Dict[str, Dict[str, Any]]:
+    def load_card_database(self) -> Dict[str, CardInfo]:
         """Load the extracted card database"""
         path: str = "./src/cards_database/card_database.json"
 

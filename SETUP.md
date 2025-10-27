@@ -31,8 +31,9 @@ Or if you don't have pyyaml installed locally, you can manually create `.env`:
 
 ```bash
 cp config.yaml.example config.yaml
-# Edit config.yaml with your paths
-# Then manually create .env with:
+```
+Edit config.yaml with your paths. Then manually create .env with:
+```bash
 MTGA_LOGS_DIR=/Your/Path/To/MTGA/Logs
 MTGA_CARD_DB_DIR=/Your/Path/To/MTGA/Card/Database
 ```
@@ -46,15 +47,26 @@ docker compose up -d
 
 ### 4. Run the Parser
 
+**Recommended method** (restarts Docker to refresh log file cache):
+
+```bash
+./docker-run-parser.sh
+```
+
+**Alternative methods:**
+
+Direct Docker execution (may show old match on macOS due to file caching):
 ```bash
 docker exec mtg-arena-parser ./get-cards-last-match.sh
 ```
 
-Or run directly (requires pyyaml to be installed):
-
+Run locally without Docker (requires pyyaml installed):
 ```bash
+pip3 install pyyaml  # One-time setup
 ./get-cards-last-match.sh
 ```
+
+> **Note:** On macOS, Docker caches the log file and may not see new matches until the container is restarted. The `run-parser.sh` script handles this automatically. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for details.
 
 ## Configuration Files
 

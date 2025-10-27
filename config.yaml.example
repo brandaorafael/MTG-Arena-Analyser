@@ -11,8 +11,3 @@ mtga:
 
   # Path to MTGA card database (Raw directory)
   card_database_dir: "/Users/YOUR_USERNAME/Library/Application Support/com.wizards.mtga/Downloads/Raw"
-
-# Output configuration
-output:
-  # Where to save the extracted card database JSON
-  card_database_json: "./src/cards_database/card_database.json"

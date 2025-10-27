@@ -7,22 +7,24 @@ Extracts game information including opponent cards when available
 import json
 import re
 from collections import defaultdict
-from typing import Dict, List, Tuple, Optional, Any, Set, Iterator
+from typing import Dict, List, Tuple, Optional, Any, Set, Iterator, Union
+
+from src.type_definitions import CardInfo, InstanceLocation
 
 
 class MatchParser:
     """Parser for MTG Arena game logs"""
 
-    def __init__(self, log_path: str, match_id: str, card_db: Dict[str, Dict[str, Any]]) -> None:
+    def __init__(self, log_path: str, match_id: str, card_db: Dict[str, CardInfo]) -> None:
         self.log_path: str = log_path
         self.match_id: str = match_id
-        self.card_db: Dict[str, Dict[str, Any]] = card_db
+        self.card_db: Dict[str, CardInfo] = card_db
 
         # Game state tracking
         self.player_seat_id: Optional[int] = None
         self.opponent_seat_id: Optional[int] = None
         self.opponent_name: Optional[str] = None
-        self.instance_locations: Dict[int, Dict[str, Any]] = {}
+        self.instance_locations: Dict[int, InstanceLocation] = {}
         self.instance_id_map: Dict[int, int] = {}
         self.instance_to_grp: Dict[int, int] = {}
         self.final_player_hand: List[int] = []
@@ -290,7 +292,7 @@ class MatchParser:
         try:
             data: Dict[str, Any] = json.loads(line)
 
-            def find_zones(obj: Any) -> Iterator[Dict[str, Any]]:
+            def find_zones(obj: Union[Dict[str, Any], List[Any]]) -> Iterator[Dict[str, Any]]:
                 if isinstance(obj, dict):
                     if 'type' in obj and obj.get('type') == 'ZoneType_Command':
                         yield obj
@@ -335,7 +337,7 @@ class MatchParser:
             elif owner == self.opponent_seat_id:
                 self.final_opponent_hand = instance_ids
 
-    def find_game_objects(self, obj: Any) -> Iterator[List[Dict[str, Any]]]:
+    def find_game_objects(self, obj: Union[Dict[str, Any], List[Any]]) -> Iterator[List[Dict[str, Any]]]:
         """Recursively find all gameObjects arrays in JSON structure"""
         if isinstance(obj, dict):
             if 'gameObjects' in obj and isinstance(obj['gameObjects'], list):
@@ -415,7 +417,7 @@ class MatchParser:
 
         # Build map of each instance to its FINAL location
         # This ensures we only count each instance once from its last known zone
-        instance_final_location: Dict[int, Dict[str, Any]] = {}
+        instance_final_location: Dict[int, InstanceLocation] = {}
 
         # Valid instances are those that either:
         # 1. Went through ObjectIdChanged (instances_with_history), OR

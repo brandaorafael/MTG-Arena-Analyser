@@ -1,8 +1,8 @@
-import sys
-from pathlib import Path
-from typing import Dict, Any
+from typing import Dict
 
 import typer
+
+from src.type_definitions import CardInfo
 
 # # Add parent folder to the python path to be able to access "/components" and "/shared"
 # parentdir = Path(__file__).resolve().parents[1].parents[0]
@@ -30,7 +30,7 @@ def parse_match(log_file: str, match_id: str) -> None:
     """
 
     # Load card database
-    card_db: Dict[str, Dict[str, Any]] = CardDatabase().load_card_database()
+    card_db: Dict[str, CardInfo] = CardDatabase().load_card_database()
     if card_db:
         print(f"✅ Loaded {len(card_db)} cards from database")
         print("")

@@ -1,4 +1,6 @@
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional
+
+from src.type_definitions import CardInfo
 from collections import defaultdict
 
 
@@ -6,18 +8,18 @@ class OutputFormatter:
     """Format and display parsed results"""
 
     @staticmethod
-    def format_card_list(cards: Dict[int, int], card_db: Dict[str, Dict[str, Any]]) -> List[Tuple[str, int]]:
+    def format_card_list(cards: Dict[int, int], card_db: Dict[str, CardInfo]) -> List[Tuple[str, int]]:
         """Format a dictionary of cards into sorted list with names"""
         card_list: List[Tuple[str, int]] = []
         for grp_id, count in cards.items():
-            card_info: Optional[Dict[str, Any]] = card_db.get(str(grp_id))
+            card_info: Optional[CardInfo] = card_db.get(str(grp_id))
             if card_info:
                 name: str = card_info['name']
                 card_list.append((name, count))
         return sorted(card_list)
 
     @staticmethod
-    def format_card_list_by_type(cards: Dict[int, int], card_db: Dict[str, Dict[str, Any]]) -> Dict[str, List[Tuple[str, int]]]:
+    def format_card_list_by_type(cards: Dict[int, int], card_db: Dict[str, CardInfo]) -> Dict[str, List[Tuple[str, int]]]:
         """Format cards grouped by type"""
         # Group cards by their primary type
         type_groups: Dict[str, List[Tuple[str, int]]] = {
@@ -32,7 +34,7 @@ class OutputFormatter:
         }
 
         for grp_id, count in cards.items():
-            card_info: Optional[Dict[str, Any]] = card_db.get(str(grp_id))
+            card_info: Optional[CardInfo] = card_db.get(str(grp_id))
             if card_info:
                 name: str = card_info['name']
                 types: List[str] = card_info.get('types', [])
@@ -89,7 +91,7 @@ class OutputFormatter:
                         print(f"    • {name}")
 
     @staticmethod
-    def display_player_deck(player_cards: Dict[int, int], player_deck: Dict[int, int], card_db: Dict[str, Dict[str, Any]], commander: Optional[int] = None) -> None:
+    def display_player_deck(player_cards: Dict[int, int], player_deck: Dict[int, int], card_db: Dict[str, CardInfo], commander: Optional[int] = None) -> None:
         """Display player's deck information"""
         print("")
         print("=" * 60)
@@ -125,7 +127,7 @@ class OutputFormatter:
             print("No cards found")
 
     @staticmethod
-    def display_opponent_deck(opponent_cards: Dict[int, int], opponent_deck_size: int, card_db: Dict[str, Dict[str, Any]], commander: Optional[int] = None, opponent_name: Optional[str] = None) -> None:
+    def display_opponent_deck(opponent_cards: Dict[int, int], opponent_deck_size: int, card_db: Dict[str, CardInfo], commander: Optional[int] = None, opponent_name: Optional[str] = None) -> None:
         """Display opponent's deck information"""
         print("")
         print("=" * 60)
